@@ -23,6 +23,7 @@ The sections below are written in the order you would touch them when standing t
 | | &nbsp;&nbsp;4c. [Pausing & unpausing a campaign](04-campaign-maintenance.md#4c-pausing--unpausing-a-campaign) | |
 | | &nbsp;&nbsp;4d. [Customer responds](04-campaign-maintenance.md#4d-customer-responds) | |
 | | &nbsp;&nbsp;4e. [Marking a job as won / lost](04-campaign-maintenance.md#4e-marking-a-job-as-won--lost) | |
+| 5 | [Originator Training Checklist](05-originator-training-checklist.md) | Trainer (account admin) |
 
 ## Conventions used in this guide
 
