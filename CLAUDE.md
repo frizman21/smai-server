@@ -26,8 +26,17 @@ docker-compose exec web bundle exec rails console
 ## Testing policy
 
 - **Always run the full test suite before considering any task complete.** Do not report a task as done if tests are failing.
+- **The full suite is three runs — all three must pass:**
+
+  ```bash
+  docker-compose exec web bundle exec rails db:test:prepare test   # minitest (unit / controller / integration)
+  docker-compose exec web bundle exec rails test:system            # system tests
+  docker-compose exec web bundle exec cucumber                     # cucumber feature suite
+  ```
+
 - **If tests fail, update the application code to make them pass** — do not weaken assertions, skip tests, or delete tests to make the suite green. Fix the underlying issue.
 - **Write unit tests for every controller you add or change, covering each branch of its logic** — unauthenticated access, empty-state, scoped reads/writes, admin paths, error cases. Don't ship a controller without tests.
+- **The Cucumber feature suite mirrors the user guide.** `features/*.feature` track [docs/user-guide/](docs/user-guide/) §1–§4 — when a feature ships, changes, or is removed, update the matching `.feature` file and its step definitions in the same change. See [ADR 0004](docs/adr/0004-cucumber-feature-suite-mirrors-the-user-guide.md) for what the feature suite is for and what belongs in it versus minitest.
 
 ## Commit policy
 
