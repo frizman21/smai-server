@@ -36,7 +36,7 @@ docker-compose exec web bundle exec rails console
 
 - **If tests fail, update the application code to make them pass** — do not weaken assertions, skip tests, or delete tests to make the suite green. Fix the underlying issue.
 - **Write unit tests for every controller you add or change, covering each branch of its logic** — unauthenticated access, empty-state, scoped reads/writes, admin paths, error cases. Don't ship a controller without tests.
-- **The Cucumber feature suite mirrors the user guide.** `features/*.feature` track [docs/user-guide/](docs/user-guide/) §1–§4 — when a feature ships, changes, or is removed, update the matching `.feature` file and its step definitions in the same change.
+- **The Cucumber feature suite mirrors the user guide.** `features/*.feature` track [docs/user-guide/](docs/user-guide/) §1–§4 — when a feature ships, changes, or is removed, update the matching `.feature` file and its step definitions in the same change. See [ADR 0004](docs/adr/0004-cucumber-feature-suite-mirrors-the-user-guide.md) for what the feature suite is for and what belongs in it versus minitest.
 
 ## Commit policy
 
