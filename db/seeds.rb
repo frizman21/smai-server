@@ -366,7 +366,8 @@ end
 # --- Approve catalog-loaded campaigns for the demo ------------------------
 # CatalogLoader (called above at the top of this seed file) created one
 # Campaign per Scenario with status :new and steps populated from the
-# authored markdown under docs/campaigns/v1-output/. A real production
+# authored markdown under docs/specs-repo/specs/templates/v1-output/.
+# A real production
 # install leaves them :new so an admin reviews + approves via the UI
 # before any sends. The demo bumps them to :approved outright so the
 # in-flight CampaignInstance fixtures below have something runnable to
