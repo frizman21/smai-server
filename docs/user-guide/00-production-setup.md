@@ -178,6 +178,8 @@ Tenants can't activate anything until the system-wide catalog of job types and s
 heroku run rails catalog:load -a <app-name>
 ```
 
+> **The catalog content lives in a git submodule.** The scenario and campaign-template markdown `catalog:load` reads from is the `smai-specs` repository, mounted at `docs/specs-repo/`. The deployed slug must include that submodule's files — clone with `git clone --recurse-submodules`, and on any checkout run `git submodule update --init` before deploying. If the submodule is missing, `catalog:load` loads the five job types but **zero scenarios** and reports `0 new` scenarios — that is the tell that the submodule wasn't included.
+
 Expected output:
 
 ```
@@ -187,7 +189,7 @@ Expected output:
 [catalog:load]   created job type: structural_cleaning
 [catalog:load]   created job type: trauma_biohazard
 [catalog:load]   created job type: water_mitigation
-[catalog:load] Loading scenarios from docs/campaigns/v1-output...
+[catalog:load] Loading scenarios from docs/specs-repo/specs/templates/v1-output...
 [catalog:load]   created scenario: general_cleaning/commercial_deep_clean
 …
 [catalog:load] Done. 5 job types (5 new, 0 existing); 17 scenarios (17 new, 0 existing).
