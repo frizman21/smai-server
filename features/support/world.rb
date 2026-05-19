@@ -26,14 +26,18 @@ module FeatureWorldHelpers
     )
   end
 
-  # Account admin — a tenant user with no location assignment.
+  # Account admin — a tenant user with no location assignment. The tenant
+  # is given an active location so invite/upload flows have one to pick.
   def account_admin_user
-    @account_admin_user ||= User.create!(
-      email: "cuke-admin@example.com",
-      password: PASSWORD, password_confirmation: PASSWORD,
-      tenant: feature_tenant, is_pending: false,
-      first_name: "Pat", last_name: "Manager"
-    )
+    @account_admin_user ||= begin
+      feature_location
+      User.create!(
+        email: "cuke-admin@example.com",
+        password: PASSWORD, password_confirmation: PASSWORD,
+        tenant: feature_tenant, is_pending: false,
+        first_name: "Pat", last_name: "Manager"
+      )
+    end
   end
 
   # Originator — a tenant user scoped to a single location.

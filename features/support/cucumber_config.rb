@@ -16,3 +16,8 @@ module GmailSenderCucumberStub
   end
 end
 GmailSender.prepend(GmailSenderCucumberStub)
+
+# Reuse the test suite's helper for pulling a link out of the most recent
+# ActionMailer delivery — used by the password-reset scenario.
+require Rails.root.join("test/support/email_helpers")
+World(EmailHelpers)
