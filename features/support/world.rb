@@ -127,6 +127,22 @@ module FeatureWorldHelpers
     CampaignInstance.create!(host: proposal, campaign: campaign, status: status)
   end
 
+  # Activates a job type + scenario for the tenant so an uploaded job has
+  # a campaign to attach to. Returns the scenario.
+  def activate_catalog_for_tenant(tenant: feature_tenant)
+    job_type = feature_job_type
+    scenario = feature_scenario(job_type: job_type)
+    TenantJobType.find_or_create_by!(tenant: tenant, job_type: job_type) { |r| r.is_active = true }
+    TenantScenario.find_or_create_by!(tenant: tenant, scenario: scenario) { |r| r.is_active = true }
+    scenario
+  end
+
+  # --- Misc ----------------------------------------------------------------
+
+  def sample_pdf_path
+    Rails.root.join("features/support/files/sample_proposal.pdf").to_s
+  end
+
   # --- Auth ----------------------------------------------------------------
 
   def sign_in_via_form(user, password: PASSWORD)
