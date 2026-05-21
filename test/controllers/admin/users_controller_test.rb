@@ -118,6 +118,32 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "body", text: /Sign-in count/
   end
 
+  test "admin user show page lists the OAuth permissions the user granted" do
+    EmailDelegation.create!(
+      user: @teammate, provider: "google_oauth2",
+      email: "pat@gmail.example.com", access_token: "tok",
+      scopes: "email https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.metadata"
+    )
+    sign_in @admin
+    get admin_tenant_user_url(@tenant, @teammate)
+    assert_response :success
+    assert_match "Send email on their behalf", response.body
+    assert_match "Read email metadata",        response.body
+    assert_no_match(/Missing the .Send email. permission/, response.body)
+  end
+
+  test "admin user show page warns when the send permission was not granted" do
+    EmailDelegation.create!(
+      user: @teammate, provider: "google_oauth2",
+      email: "pat@gmail.example.com", access_token: "tok",
+      scopes: "email https://www.googleapis.com/auth/gmail.metadata"
+    )
+    sign_in @admin
+    get admin_tenant_user_url(@tenant, @teammate)
+    assert_response :success
+    assert_match(/Missing the .Send email. permission/, response.body)
+  end
+
   test "admin user show page does not expose password details" do
     @teammate.update!(reset_password_token: "secret-reset-token")
     sign_in @admin

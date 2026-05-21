@@ -87,6 +87,7 @@
             <th>Address</th>
             <th>Provider</th>
             <th>Token status</th>
+            <th>Permissions granted</th>
             <th>Connected</th>
           </tr>
         </thead>
@@ -104,6 +105,25 @@
                 <% else %>
                   <span class="badge text-bg-success">Valid</span>
                   <span class="text-muted small ms-1">until <%= d.expires_at.to_fs(:long) %></span>
+                <% end %>
+              </td>
+              <td>
+                <% if d.granted_scopes.any? %>
+                  <div class="d-flex flex-wrap gap-1">
+                    <% d.granted_scopes.each do |scope| %>
+                      <% is_send = scope == EmailDelegation::GMAIL_SEND_SCOPE %>
+                      <span class="badge <%= is_send ? "text-bg-success" : "text-bg-light border" %>">
+                        <%= oauth_scope_label(scope) %>
+                      </span>
+                    <% end %>
+                  </div>
+                  <% unless d.can_send? %>
+                    <div class="text-danger small mt-1">
+                      Missing the “Send email” permission — campaign sends from this account will fail.
+                    </div>
+                  <% end %>
+                <% else %>
+                  <span class="text-muted small">Not recorded</span>
                 <% end %>
               </td>
               <td><%= d.created_at.to_fs(:long) %></td>

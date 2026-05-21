@@ -72,6 +72,25 @@ module ApplicationHelper
     GOOGLE_OAUTH_ENV_VARS.reject { |key| ENV[key].present? }
   end
 
+  # Friendly labels for the OAuth scopes we request from Google. Google
+  # may report the email/profile scopes in either short form or as full
+  # userinfo URLs depending on the consent flow, so both are mapped.
+  OAUTH_SCOPE_LABELS = {
+    "email"   => "Email address",
+    "profile" => "Basic profile",
+    "openid"  => "OpenID sign-in",
+    "https://www.googleapis.com/auth/userinfo.email"   => "Email address",
+    "https://www.googleapis.com/auth/userinfo.profile" => "Basic profile",
+    "https://www.googleapis.com/auth/gmail.send"       => "Send email on their behalf",
+    "https://www.googleapis.com/auth/gmail.metadata"   => "Read email metadata"
+  }.freeze
+
+  # Operator-readable name for a raw Google OAuth scope string. Unknown
+  # scopes fall through to the raw value so nothing is silently hidden.
+  def oauth_scope_label(scope)
+    OAUTH_SCOPE_LABELS[scope] || scope
+  end
+
   # Render a CampaignStep offset (stored as minutes) in operator-friendly
   # words. Examples:
   #   0    → "Immediately"
