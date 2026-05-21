@@ -60,6 +60,7 @@
                 <th>Name</th>
                 <th>Email</th>
                 <th>Location</th>
+                <th>Gmail</th>
                 <th class="text-end">Status</th>
                 <th class="text-end" style="width: 1%;"></th>
               </tr>
@@ -80,6 +81,18 @@
                       <%= user.location.display_name %>
                     <% else %>
                       <span class="text-muted">—</span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <% gmail_delegation = user.gmail_delegation %>
+                    <% if gmail_delegation.nil? %>
+                      <span class="text-muted small">Not linked</span>
+                    <% elsif gmail_delegation.expired? && gmail_delegation.refresh_token.blank? %>
+                      <span class="badge text-bg-warning">Expired</span>
+                      <div class="text-muted small"><%= gmail_delegation.email %></div>
+                    <% else %>
+                      <span class="badge text-bg-success">Linked</span>
+                      <div class="text-muted small"><%= gmail_delegation.email %></div>
                     <% end %>
                   </td>
                   <td class="text-end">

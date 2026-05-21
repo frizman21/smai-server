@@ -111,4 +111,43 @@ class Admin::TenantsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Invitations aren't ready to send/i, response.body)
     assert_match(/Gmail account is connected/i, response.body)
   end
+
+  test "show indicates Gmail OAuth status for each user in the tenant" do
+    linked_user = users(:one)
+    unlinked_user = User.create!(
+      email: "no-gmail@example.com",
+      password: "password123",
+      tenant: tenants(:one),
+      is_pending: false
+    )
+    expired_user = User.create!(
+      email: "expired-gmail@example.com",
+      password: "password123",
+      tenant: tenants(:one),
+      is_pending: false
+    )
+    EmailDelegation.create!(
+      user: linked_user,
+      provider: "google_oauth2",
+      email: "linked@gmail.example.com",
+      access_token: "tok"
+    )
+    EmailDelegation.create!(
+      user: expired_user,
+      provider: "google_oauth2",
+      email: "expired@gmail.example.com",
+      access_token: "tok",
+      expires_at: 1.day.ago,
+      refresh_token: nil
+    )
+
+    sign_in @admin
+    get admin_tenant_url(tenants(:one))
+    assert_response :success
+    assert_match(/linked@gmail\.example\.com/, response.body)
+    assert_match(/expired@gmail\.example\.com/, response.body)
+    assert_select "th", text: "Gmail"
+    assert_select "tr", text: /#{Regexp.escape(unlinked_user.email)}.*Not linked/m
+    assert_select "tr", text: /#{Regexp.escape(expired_user.email)}.*Expired/m
+  end
 end
