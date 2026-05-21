@@ -17,6 +17,10 @@ class Admin::UsersController < Admin::BaseController
     @users = scope
   end
 
+  def show
+    @delegations = @user.email_delegations.order(:provider, :email)
+  end
+
   def edit
     @location_options = @tenant.locations.active.order(:display_name)
   end

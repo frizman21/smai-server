@@ -91,6 +91,58 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", edit_admin_tenant_user_path(@tenant, @teammate), text: "Edit"
   end
 
+  # --- show ---------------------------------------------------------------
+
+  test "non-admin cannot reach the admin user show page" do
+    sign_in @non_admin
+    get admin_tenant_user_url(@tenant, @teammate)
+    assert_redirected_to root_path
+  end
+
+  test "admin sees the user show page with stored profile and activity details" do
+    @teammate.update!(
+      first_name: "Pat", last_name: "Quinn", title: "Estimator",
+      phone_number: "(214) 555-1212", sign_in_count: 3
+    )
+    EmailDelegation.create!(
+      user: @teammate, provider: "google_oauth2",
+      email: "pat@gmail.example.com", access_token: "tok"
+    )
+    sign_in @admin
+    get admin_tenant_user_url(@tenant, @teammate)
+    assert_response :success
+    assert_match @teammate.email,    response.body
+    assert_match "Estimator",        response.body
+    assert_match "(214) 555-1212",   response.body
+    assert_match "pat@gmail.example.com", response.body
+    assert_select "body", text: /Sign-in count/
+  end
+
+  test "admin user show page does not expose password details" do
+    @teammate.update!(reset_password_token: "secret-reset-token")
+    sign_in @admin
+    get admin_tenant_user_url(@tenant, @teammate)
+    assert_response :success
+    assert_no_match @teammate.encrypted_password, response.body
+    assert_no_match(/secret-reset-token/, response.body)
+  end
+
+  test "admin gets a friendly redirect when showing a user not in the tenant" do
+    other_tenant = Tenant.create!(name: "OtherCo-show-mismatch")
+    outsider = User.create!(email: "outsider-admin-show@example.com", password: "Password1", is_pending: false, tenant: other_tenant)
+    sign_in @admin
+    get admin_tenant_user_url(@tenant, outsider)
+    assert_redirected_to admin_tenant_path(@tenant)
+    assert_match(/not found in this tenant/i, flash[:alert].to_s)
+  end
+
+  test "admin tenant show links each user name to the user show page" do
+    sign_in @admin
+    get admin_tenant_url(@tenant)
+    assert_response :success
+    assert_select "a[href=?]", admin_tenant_user_path(@tenant, @teammate)
+  end
+
   # --- index --------------------------------------------------------------
 
   test "index redirects to sign-in when not signed in" do
