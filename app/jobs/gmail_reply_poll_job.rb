@@ -8,7 +8,7 @@ require "net/http"
 # own Gmail — so the conversation lives in *their* mailbox, not the
 # shared ApplicationMailbox. The poller authenticates per-step as that
 # originator's EmailDelegation; a step whose originator has since
-# disconnected Gmail is logged and skipped, and the next tick retries.
+disconnected Gmail is logged and skipped, and the next tick retries.
 #
 # Eligibility (per-campaign-instance, latest sent step only):
 #   - Step has a stored gmail_thread_id.
@@ -164,7 +164,9 @@ class GmailReplyPollJob < ApplicationJob
   # internal.
   def internal_reply?(message, tenant)
     return false if tenant.nil?
-    tenant.reply_ignored_sender?(extract_email(extract_from_header(message)))
+    sender_email = extract_email(extract_from_header(message))
+    return false unless valid_email_format?(sender_email)
+    tenant.reply_ignored_sender?(sender_email)
   end
 
   def from_other_party?(message, originator_email)
@@ -196,6 +198,10 @@ class GmailReplyPollJob < ApplicationJob
     return bracketed[1].strip if bracketed
     bare = from_value.match(/\S+@\S+/)
     bare ? bare[0].strip : ""
+  end
+
+  def valid_email_format?(email)
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.match?(email)
   end
 
   def flag_reply(step_instance, reply_message)
