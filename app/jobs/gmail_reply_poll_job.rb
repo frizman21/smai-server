@@ -25,6 +25,12 @@ require "net/http"
 #     header whose address isn't the originator's Gmail, that message is
 #     either a customer reply or an asynchronous bounce DSN.
 #
+# A new message from the originator's own organization (a CC'd
+# teammate, an owner forwarding the thread internally) or from
+# ServiceMark AI staff is not a customer reply — see
+# Tenant#reply_ignored_domains — and is skipped so the scan can find a
+# genuine customer reply further down the thread.
+#
 # Bounces are distinguished by the local-part of the inbound From
 # address (mailer-daemon, postmaster). The handling diverges:
 #   - Customer reply  -> CampaignInstance :stopped_on_reply,
@@ -109,7 +115,14 @@ class GmailReplyPollJob < ApplicationJob
       return
     end
 
-    inbound = first_inbound_message(thread, step_instance.gmail_thread_snapshot, delegation.email)
+    # The customer-replied stop is meant to fire on a *customer* reply
+    # only. Mail that comes back from the originator's own organization
+    # (a CC'd teammate, an owner forwarding internally) or from
+    # ServiceMark AI staff is not a customer reply — see
+    # Tenant#reply_ignored_domains. Bounces are unaffected: a DSN is
+    # caught earlier by its mailer-daemon/postmaster local-part.
+    tenant = step_instance.campaign_instance.host&.owner&.tenant
+    inbound = first_inbound_message(thread, step_instance.gmail_thread_snapshot, delegation.email, tenant)
     return unless inbound
 
     case inbound[:kind]
@@ -127,7 +140,7 @@ class GmailReplyPollJob < ApplicationJob
   # message itself — rather than just a flag — lets the caller persist
   # the specific Gmail payload that triggered the stop, useful for
   # diagnostics.
-  def first_inbound_message(current_thread, baseline_thread, originator_email)
+  def first_inbound_message(current_thread, baseline_thread, originator_email, tenant)
     baseline_count = Array(baseline_thread["messages"]).length
     current_messages = Array(current_thread["messages"])
     return nil if current_messages.length <= baseline_count
@@ -135,9 +148,23 @@ class GmailReplyPollJob < ApplicationJob
     new_messages = current_messages.last(current_messages.length - baseline_count)
     new_messages.each do |msg|
       next unless from_other_party?(msg, originator_email)
-      return { kind: bounce_message?(msg) ? :bounce : :reply, message: msg }
+      return { kind: :bounce, message: msg } if bounce_message?(msg)
+      # An internal reply (tenant's own domain / ServiceMark AI) isn't a
+      # customer reply — skip it and keep scanning later messages for a
+      # genuine customer reply further down the thread.
+      next if internal_reply?(msg, tenant)
+      return { kind: :reply, message: msg }
     end
     nil
+  end
+
+  # True when the message's From address belongs to a domain whose
+  # replies should not trip the customer-replied stop. With no tenant we
+  # can't resolve the tenant's own domains, so nothing is treated as
+  # internal.
+  def internal_reply?(message, tenant)
+    return false if tenant.nil?
+    tenant.reply_ignored_sender?(extract_email(extract_from_header(message)))
   end
 
   def from_other_party?(message, originator_email)

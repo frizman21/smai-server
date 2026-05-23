@@ -113,19 +113,30 @@ class JobProposalsController < ApplicationController
     set_form_options
   end
 
+  # Operator-driven resume. A campaign reaches a stopped state two ways an
+  # operator can walk back: a manual pause, or an automatic stop when the
+  # customer replied. "Customer waiting" is not terminal — once the
+  # operator has handled the reply in Gmail they can put the proposal back
+  # into the automated campaign. The inverse flow is `pause`.
   def resume
     instance = @job_proposal.campaign_instances.order(created_at: :desc).first
 
-    if instance&.status_paused?
+    if instance&.status_paused? || instance&.status_stopped_on_reply?
       JobProposal.transaction do
+        # A campaign that stopped on a customer reply still has that reply
+        # sitting in its Gmail thread. Fold it into the step snapshot so
+        # the reply poller treats it as baseline — otherwise the next tick
+        # would re-detect the same reply and stop the campaign again.
+        absorb_recorded_replies(instance) if instance.status_stopped_on_reply?
         # ended_at cleared so the reply poller's age cutoff treats this as
-        # a live campaign again (was set when pause stopped the instance).
+        # a live campaign again (was set when the campaign stopped).
         instance.update!(status: :active, ended_at: nil)
         @job_proposal.update!(status_overlay: nil)
       end
       redirect_to job_proposal_path(@job_proposal), notice: "Campaign resumed."
     else
-      redirect_to job_proposal_path(@job_proposal), alert: "This campaign isn't paused."
+      redirect_to job_proposal_path(@job_proposal),
+        alert: "This campaign isn't paused or waiting on a customer reply."
     end
   end
 
@@ -310,6 +321,27 @@ class JobProposalsController < ApplicationController
   end
 
   private
+
+  # Resuming a campaign that stopped on a customer reply must not let the
+  # reply poller re-trip on that same reply. Each step the poller flagged
+  # carries the exact Gmail message in gmail_reply_payload; appending it to
+  # the step's send-time thread snapshot makes that message part of the new
+  # baseline, so only a *further* reply restarts the stop. Steps with no
+  # usable snapshot are simply unflagged — a blank snapshot makes the poller
+  # re-baseline from the live thread on its next pass anyway.
+  def absorb_recorded_replies(instance)
+    instance.step_instances.where(customer_replied: true).find_each do |step|
+      snapshot = step.gmail_thread_snapshot
+      payload = step.gmail_reply_payload
+      if payload.present? && snapshot.is_a?(Hash) && snapshot["messages"].is_a?(Array)
+        merged = snapshot.deep_dup
+        merged["messages"] << payload
+        step.update!(gmail_thread_snapshot: merged, customer_replied: false)
+      else
+        step.update!(customer_replied: false)
+      end
+    end
+  end
 
   def lock_in_instance!(instance)
     started_at = Time.current
