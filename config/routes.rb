@@ -68,7 +68,13 @@ Rails.application.routes.draw do
     resources :tenants, only: [:index, :show, :new, :create, :edit, :update] do
       resources :invitations, only: [:create, :destroy]
       resources :locations, only: [:new, :create]
-      resources :users, only: [:show, :edit, :update]
+      resources :users, only: [:show, :edit, :update] do
+        member do
+          patch :remove_from_tenant
+          patch :discard
+          patch :restore
+        end
+      end
       resource :activations, only: [:show], controller: "activations"
       resources :job_type_activations, only: [:create, :destroy] do
         member { post :activate_all_scenarios }

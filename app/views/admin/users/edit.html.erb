@@ -66,3 +66,57 @@
     <% end %>
   </div>
 </div>
+
+<%# Off-boarding actions. Admin-only (this whole controller is). Self-action
+    is refused at the controller layer; we also disable the buttons here
+    so the UI matches. %>
+<div class="card shadow-sm mt-4 border-danger-subtle">
+  <div class="card-header bg-danger-subtle">
+    <h2 class="h5 mb-0">Off-board</h2>
+  </div>
+  <div class="card-body p-4">
+    <% self_action = @user == current_user %>
+
+    <% if @user.discarded? %>
+      <p class="mb-3">
+        This user is <strong>deactivated</strong>
+        (<%= time_ago_in_words(@user.discarded_at) %> ago) and cannot sign in.
+        Reactivate to restore access.
+      </p>
+      <%= button_to "Reactivate user", restore_admin_tenant_user_path(@tenant, @user),
+            method: :patch,
+            class: "btn btn-outline-success",
+            form: { class: "m-0" } %>
+    <% else %>
+      <div class="row g-3 align-items-start">
+        <div class="col-md-6">
+          <h3 class="h6">Remove from this tenant</h3>
+          <p class="small text-muted mb-2">
+            Nulls their tenant + location. The user account stays — they
+            just no longer see this tenant's data. Past proposal ownership
+            and history are preserved.
+          </p>
+          <%= button_to "Remove from #{@tenant.name}", remove_from_tenant_admin_tenant_user_path(@tenant, @user),
+                method: :patch,
+                class: "btn btn-outline-warning",
+                disabled: self_action,
+                title: self_action ? "You can't remove yourself." : nil,
+                form: { class: "m-0", data: { turbo_confirm: "Remove #{@user.display_name} from #{@tenant.name}? They will no longer see this tenant's data." } } %>
+        </div>
+        <div class="col-md-6">
+          <h3 class="h6">Soft delete user</h3>
+          <p class="small text-muted mb-2">
+            Deactivates the account globally. They cannot sign in. The
+            row stays for audit / FK integrity and can be reactivated here.
+          </p>
+          <%= button_to "Deactivate user", discard_admin_tenant_user_path(@tenant, @user),
+                method: :patch,
+                class: "btn btn-outline-danger",
+                disabled: self_action,
+                title: self_action ? "You can't soft-delete yourself." : nil,
+                form: { class: "m-0", data: { turbo_confirm: "Deactivate #{@user.display_name}? They will be signed out and unable to log in until reactivated." } } %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

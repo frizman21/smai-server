@@ -44,9 +44,11 @@ class Tenant < ApplicationRecord
 
   # The account's owners: tenant users not pinned to a single location
   # (the same population that carries the tenant-admin role). Their email
-  # addresses define what counts as "the tenant's own domain".
+  # addresses define what counts as "the tenant's own domain". A discarded
+  # (off-boarded) admin shouldn't keep contributing their domain to the
+  # reply-ignore list, so kept-only.
   def owner_users
-    users.where(location_id: nil)
+    users.kept.where(location_id: nil)
   end
 
   # A campaign stops automatically when the *customer* replies. Mail that

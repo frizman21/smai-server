@@ -7,7 +7,7 @@ class UsersController < ApplicationController
   def index
     @tenant = current_user.tenant
     if @tenant
-      @users = @tenant.users.includes(:email_delegations, :location).order(:email)
+      @users = @tenant.users.kept.includes(:email_delegations, :location).order(:email)
       # Pending invitations only flow to the view for users who can act on
       # them (account admins / app admins). Regular tenant users get an
       # empty relation so the data never crosses the controller boundary.
