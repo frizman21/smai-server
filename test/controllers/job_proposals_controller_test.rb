@@ -441,6 +441,49 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_match "Job Proposal ##{jp.id}", response.body
   end
 
+  # --- internal_reference display (issue #230) ---
+
+  test "show renders internal reference and DASH job number in the Job pane" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(internal_reference: "SMAI-2026-0042", dash_job_number: "DASH-2026-0042")
+    get job_proposal_url(jp)
+    assert_response :success
+    # Both labels in the Job card dl
+    assert_match "Internal reference", response.body
+    assert_match "SMAI-2026-0042", response.body
+    assert_match "DASH job number", response.body
+    assert_match "DASH-2026-0042", response.body
+  end
+
+  test "show falls back to an em-dash when internal_reference is blank" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(internal_reference: nil)
+    get job_proposal_url(jp)
+    assert_response :success
+    # The Internal reference row still renders, but with a muted dash.
+    assert_match "Internal reference", response.body
+  end
+
+  test "index card shows internal reference next to DASH for proposals that have one" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(internal_reference: "SMAI-2026-0042")
+    get job_proposals_url
+    assert_response :success
+    assert_match "Ref #SMAI-2026-0042", response.body
+  end
+
+  test "needs_attention list also shows the internal reference" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(status: :drafting, internal_reference: "SMAI-2026-0042")
+    get job_proposals_url(filter: "needs_attention")
+    assert_response :success
+    assert_match "Ref #SMAI-2026-0042", response.body
+  end
+
   test "show step table includes a Thread column linking to the Gmail conversation when present" do
     sign_in @user
     jp = job_proposals(:in_users_org)

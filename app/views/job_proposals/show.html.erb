@@ -101,6 +101,24 @@
   </div>
   <div class="card-body">
     <dl class="row mb-0">
+      <dt class="col-sm-3">Internal reference</dt>
+      <dd class="col-sm-9">
+        <% if @job_proposal.internal_reference.present? %>
+          <%= @job_proposal.internal_reference %>
+        <% else %>
+          <span class="text-muted">—</span>
+        <% end %>
+      </dd>
+
+      <dt class="col-sm-3">DASH job number</dt>
+      <dd class="col-sm-9">
+        <% if @job_proposal.dash_job_number.present? %>
+          <%= @job_proposal.dash_job_number %>
+        <% else %>
+          <span class="text-muted">—</span>
+        <% end %>
+      </dd>
+
       <dt class="col-sm-3">Job type</dt>
       <dd class="col-sm-9"><%= @job_proposal.job_type&.name || content_tag(:span, "—", class: "text-muted") %></dd>
 
