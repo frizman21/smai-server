@@ -249,6 +249,7 @@
                           .includes(:campaign_step)
                           .joins(:campaign_step)
                           .order("campaign_steps.sequence_number") %>
+      <% show_dev_actions = Rails.env.development? && current_user.is_admin %>
       <table class="table mb-0 align-middle small mt-2">
         <thead class="table-light">
           <tr>
@@ -257,6 +258,7 @@
             <th style="width: 130px;">Status</th>
             <th style="width: 240px;">When</th>
             <th style="width: 110px;">Thread</th>
+            <% if show_dev_actions %><th style="width: 170px;">Dev</th><% end %>
           </tr>
         </thead>
         <tbody>
@@ -308,6 +310,20 @@
                   <span class="text-muted">—</span>
                 <% end %>
               </td>
+              <% if show_dev_actions %>
+                <td>
+                  <% if step_status == "sent" %>
+                    <%= button_to "Simulate response",
+                          simulate_reply_job_proposal_step_instance_path(@job_proposal, si),
+                          method: :post,
+                          class: "btn btn-outline-secondary btn-sm",
+                          form: { class: "m-0", data: { turbo_confirm: "Synthesize a customer reply and run it through the reply handler? Dev-only." } },
+                          title: "Dev/admin only. Enqueues a Sidekiq job that runs the same handler as a real Gmail reply." %>
+                  <% else %>
+                    <span class="text-muted">—</span>
+                  <% end %>
+                </td>
+              <% end %>
             </tr>
           <% end %>
         </tbody>

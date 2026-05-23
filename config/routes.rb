@@ -47,6 +47,7 @@ Rails.application.routes.draw do
     resources :step_instances, only: [:show], controller: "campaign_step_instances" do
       member do
         post :check_thread
+        post :simulate_reply
       end
     end
     resources :campaign_instances, only: [:show]

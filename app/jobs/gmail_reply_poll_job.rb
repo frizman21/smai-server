@@ -199,19 +199,7 @@ class GmailReplyPollJob < ApplicationJob
   end
 
   def flag_reply(step_instance, reply_message)
-    instance = step_instance.campaign_instance
-    host = instance.host
-
-    JobProposal.transaction do
-      step_instance.update!(customer_replied: true, gmail_reply_payload: reply_message)
-      instance.reload
-      if instance.status_active? || instance.status_completed?
-        instance.update!(status: :stopped_on_reply, ended_at: Time.current)
-      end
-      if host.is_a?(JobProposal)
-        host.update!(status_overlay: "customer_waiting")
-      end
-    end
+    CustomerReplyHandler.flag!(step_instance, reply_message)
   end
 
   def flag_bounce(step_instance, bounce_message)

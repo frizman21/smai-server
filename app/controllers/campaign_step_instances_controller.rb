@@ -34,6 +34,28 @@ class CampaignStepInstancesController < ApplicationController
     render :show
   end
 
+  # Development-only diagnostic: enqueue a Sidekiq job that synthesizes a
+  # customer reply for this step and runs it through the same handler the
+  # real Gmail poller uses. Walks the post-reply state machine end to end —
+  # campaign instance flips to :stopped_on_reply, proposal status_overlay
+  # to "customer_waiting", proposal lands in Needs Attention — without
+  # needing a real inbox. Gated to admin + development at the controller
+  # layer, and the job itself refuses in non-dev as a second line.
+  def simulate_reply
+    unless Rails.env.development? && current_user.is_admin
+      redirect_to job_proposal_step_instance_path(@job_proposal, @step_instance),
+        alert: "Simulate response is a development-only diagnostic." and return
+    end
+    unless @step_instance.email_delivery_status_sent?
+      redirect_to job_proposal_step_instance_path(@job_proposal, @step_instance),
+        alert: "Only sent steps can have a reply simulated against them." and return
+    end
+
+    SimulateCustomerReplyJob.perform_later(@step_instance.id)
+    redirect_to job_proposal_path(@job_proposal),
+      notice: "Simulated customer reply enqueued — refresh in a moment to see the campaign stop and the proposal flip to Customer waiting."
+  end
+
   private
 
   def prepare_show_view_data
