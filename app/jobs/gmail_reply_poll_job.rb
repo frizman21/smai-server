@@ -201,7 +201,7 @@ class GmailReplyPollJob < ApplicationJob
   end
 
   def valid_email_format?(email)
-    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.match?(email)
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.match?(email)
   end
 
   def flag_reply(step_instance, reply_message)
