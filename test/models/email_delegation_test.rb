@@ -30,4 +30,23 @@ class EmailDelegationTest < ActiveSupport::TestCase
     delegation = build_delegation(scopes: "email https://www.googleapis.com/auth/gmail.metadata")
     assert_not delegation.can_send?
   end
+
+  test "all_scopes_granted? is true when every required Gmail scope is present" do
+    delegation = build_delegation(
+      scopes: "email https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.metadata"
+    )
+    assert delegation.all_scopes_granted?
+    assert_empty delegation.missing_scopes
+  end
+
+  test "missing_scopes lists each required Gmail scope that was not granted" do
+    delegation = build_delegation(scopes: "email https://www.googleapis.com/auth/gmail.send")
+    assert_not delegation.all_scopes_granted?
+    assert_equal [EmailDelegation::GMAIL_METADATA_SCOPE], delegation.missing_scopes
+  end
+
+  test "missing_scopes lists everything when no scopes were recorded" do
+    delegation = build_delegation(scopes: nil)
+    assert_equal EmailDelegation::REQUIRED_GMAIL_SCOPES, delegation.missing_scopes
+  end
 end

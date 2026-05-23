@@ -127,8 +127,8 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in @admin
     get admin_tenant_user_url(@tenant, @teammate)
     assert_response :success
-    assert_match "Send email on their behalf", response.body
-    assert_match "Read email metadata",        response.body
+    assert_match "Send email",          response.body
+    assert_match "Read email metadata", response.body
     assert_no_match(/Missing the .Send email. permission/, response.body)
   end
 

@@ -81,7 +81,7 @@ module ApplicationHelper
     "openid"  => "OpenID sign-in",
     "https://www.googleapis.com/auth/userinfo.email"   => "Email address",
     "https://www.googleapis.com/auth/userinfo.profile" => "Basic profile",
-    "https://www.googleapis.com/auth/gmail.send"       => "Send email on their behalf",
+    "https://www.googleapis.com/auth/gmail.send"       => "Send email",
     "https://www.googleapis.com/auth/gmail.metadata"   => "Read email metadata"
   }.freeze
 

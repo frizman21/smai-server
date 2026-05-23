@@ -37,6 +37,29 @@ class ProfilesControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", email_delegation_path(@user.email_delegations.first)
   end
 
+  test "show warns when a connected account is missing required Gmail scopes" do
+    @user.email_delegations.create!(
+      provider: "google_oauth2", email: "owner@example.com", access_token: "tok",
+      scopes: "email https://www.googleapis.com/auth/gmail.send"
+    )
+    sign_in @user
+    get profile_url
+    assert_response :success
+    assert_match(/missing permissions ServiceMark AI needs/i, response.body)
+    assert_match "Read email metadata", response.body
+  end
+
+  test "show does not warn when a connected account has every required Gmail scope" do
+    @user.email_delegations.create!(
+      provider: "google_oauth2", email: "owner@example.com", access_token: "tok",
+      scopes: "email https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.metadata"
+    )
+    sign_in @user
+    get profile_url
+    assert_response :success
+    assert_no_match(/missing permissions ServiceMark AI needs/i, response.body)
+  end
+
   test "edit renders the form with current profile values" do
     @user.update!(first_name: "Jane", last_name: "Doe", phone_number: "555-1234")
     sign_in @user
