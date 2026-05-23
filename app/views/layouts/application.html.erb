@@ -26,7 +26,7 @@
 
   </head>
 
-  <body<% if user_signed_in? %> data-poll-url="<%= poll_job_proposals_path %>" data-poll-interval="10000"<% end %>>
+  <body<% if user_signed_in? %> data-poll-url="<%= current_poll_url %>" data-poll-interval="10000"<% end %>>
     <header class="sticky-top app-header">
       <% if user_signed_in? && current_user.is_admin && (missing = missing_env_vars).any? %>
         <div class="alert alert-warning rounded-0 mb-0 small text-center">
@@ -106,12 +106,10 @@
               }
             }
 
-            var scopeEl = document.querySelector("[data-poll-scope]");
-            if (scopeEl) {
-              var key = scopeEl.dataset.pollScope + "_signature";
-              var initial = scopeEl.dataset.pollSignature;
-              var latest = data[key];
-              if (latest && initial && latest !== initial) {
+            var sigEl = document.querySelector("[data-poll-signature]");
+            if (sigEl && data.list_signature) {
+              var initial = sigEl.dataset.pollSignature;
+              if (initial && data.list_signature !== initial) {
                 var banner = document.querySelector("[data-poll-refresh-banner]");
                 if (banner) banner.removeAttribute("hidden");
               }

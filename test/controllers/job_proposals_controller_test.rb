@@ -114,17 +114,16 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_session_path
   end
 
-  test "poll returns a JSON payload with the needs_attention count and signatures" do
+  test "poll returns the broad needs_attention count and a list signature" do
     sign_in @user
     get poll_job_proposals_url
     assert_response :success
     body = JSON.parse(response.body)
     assert_kind_of Integer, body["needs_attention_count"]
-    assert_match(/\A\d+-\d+\z/, body["needs_attention_signature"])
-    assert_match(/\A\d+-\d+\z/, body["all_jobs_signature"])
+    assert_match(/\A\d+-\d+\z/, body["list_signature"])
   end
 
-  test "poll scopes counts and signatures by ability" do
+  test "poll scopes everything by ability" do
     sign_in @user
     get poll_job_proposals_url
     user_body = JSON.parse(response.body)
@@ -133,40 +132,70 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     get poll_job_proposals_url
     other_body = JSON.parse(response.body)
 
-    assert_not_equal user_body["all_jobs_signature"], other_body["all_jobs_signature"],
+    assert_not_equal user_body["list_signature"], other_body["list_signature"],
       "different tenants should have different signatures (tenant isolation)"
   end
 
-  test "poll signature changes after a proposal in the scope is updated" do
+  test "poll signature changes after a row in the scope is updated" do
     sign_in @user
     get poll_job_proposals_url
-    before_sig = JSON.parse(response.body)["needs_attention_signature"]
+    before_sig = JSON.parse(response.body)["list_signature"]
 
-    # Bumping updated_at on a needs-attention row (drafting fixture) must
-    # change the signature — that's exactly how the client detects a drift.
     travel 5.seconds do
       job_proposals(:in_users_org).touch
     end
 
     get poll_job_proposals_url
-    after_sig = JSON.parse(response.body)["needs_attention_signature"]
+    after_sig = JSON.parse(response.body)["list_signature"]
     assert_not_equal before_sig, after_sig
   end
 
-  test "index embeds the poll scope and signature so the client can detect drift" do
+  test "poll list_signature honors the same filter params as the index" do
+    # The index page narrows by search/status/owner; the poll endpoint must
+    # apply the same narrowing so the banner only fires for changes the
+    # operator's filtered view would actually pick up. Alice and Bob are
+    # both owned by users(:one) in fixtures, so we isolate them with a
+    # search filter — Alice's first name vs Bob's.
+    sign_in @user
+
+    get poll_job_proposals_url(q: "alice")
+    alice_sig = JSON.parse(response.body)["list_signature"]
+
+    travel 5.seconds do
+      job_proposals(:same_tenant_other_org).touch # Bob — outside the q=alice filter
+    end
+    get poll_job_proposals_url(q: "alice")
+    assert_equal alice_sig, JSON.parse(response.body)["list_signature"],
+      "touching a row outside the filter should not change the filtered signature"
+
+    travel 10.seconds do
+      job_proposals(:in_users_org).touch # Alice — inside the q=alice filter
+    end
+    get poll_job_proposals_url(q: "alice")
+    assert_not_equal alice_sig, JSON.parse(response.body)["list_signature"],
+      "touching a row inside the filter should change the filtered signature"
+  end
+
+  test "poll needs_attention_count is the broad badge count, not the filtered list count" do
+    # Whatever sub-filter the operator's index is on, the sidebar badge
+    # represents the whole tenant's queue. Filter params on /poll must not
+    # narrow the badge — only the list_signature.
+    sign_in @user
+    get poll_job_proposals_url
+    unfiltered = JSON.parse(response.body)["needs_attention_count"]
+
+    get poll_job_proposals_url(q: "alice")
+    filtered = JSON.parse(response.body)["needs_attention_count"]
+
+    assert_equal unfiltered, filtered
+  end
+
+  test "index embeds a poll signature for client-side drift detection" do
     sign_in @user
     get job_proposals_url(filter: "needs_attention")
     assert_response :success
-    assert_match 'data-poll-scope="needs_attention"', response.body
     assert_match(/data-poll-signature="\d+-\d+"/, response.body)
     assert_match "data-poll-refresh-banner", response.body
-  end
-
-  test "index uses all_jobs scope on the unfiltered list" do
-    sign_in @user
-    get job_proposals_url
-    assert_response :success
-    assert_match 'data-poll-scope="all_jobs"', response.body
   end
 
   test "filters compose with each other" do

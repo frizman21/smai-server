@@ -14,12 +14,12 @@ class JobProposalsController < ApplicationController
   before_action :require_admin, only: [:restore]
 
   def index
-    scope = JobProposal
+    base = JobProposal
       .accessible_by(current_ability)
       .includes(:location, :job_type, :owner, :created_by_user)
 
-    @status_options = scope.distinct.pluck(:status).compact.sort
-    user_ids = (scope.distinct.pluck(:owner_id) + scope.distinct.pluck(:created_by_user_id)).uniq
+    @status_options = base.distinct.pluck(:status).compact.sort
+    user_ids = (base.distinct.pluck(:owner_id) + base.distinct.pluck(:created_by_user_id)).uniq
     @user_options = User.where(id: user_ids).order(:email)
 
     @show_location_controls = !current_user.scoped_to_location?
@@ -28,35 +28,22 @@ class JobProposalsController < ApplicationController
     @selected_status = params[:status].presence
     @selected_owner_id = params[:owner_id].presence
     @selected_creator_id = params[:creator_id].presence
+    @selected_location_id = params[:location_id].presence unless current_user.scoped_to_location?
     @search = params[:q].to_s.strip
     @needs_attention_only = params[:filter] == "needs_attention"
 
-    if current_user.scoped_to_location?
-      scope = scope.where(location_id: current_user.location_id)
-    else
-      @selected_location_id = params[:location_id].presence
-      scope = scope.where(location_id: @selected_location_id) if @selected_location_id
-    end
-
-    scope = scope.needs_attention if @needs_attention_only
-    scope = scope.where(status: @selected_status) if @selected_status
-    scope = scope.where(owner_id: @selected_owner_id) if @selected_owner_id
-    scope = scope.where(created_by_user_id: @selected_creator_id) if @selected_creator_id
-    scope = apply_search(scope, @search) if @search.present?
+    list_scope = filtered_scope(base)
 
     sort_column = ALLOWED_SORTS.include?(params[:sort]) ? params[:sort] : "created_at"
     sort_dir    = ALLOWED_DIRS.include?(params[:dir])  ? params[:dir]  : "desc"
 
-    @job_proposals = scope.order(sort_column => sort_dir, id: :desc)
+    @job_proposals = list_scope.order(sort_column => sort_dir, id: :desc)
 
-    # The poll endpoint computes signatures against the broad
-    # accessible_by(current_ability) scope (optionally narrowed by
-    # needs_attention). Compute the matching signature here so the rendered
-    # page can embed it and the client-side poll can detect a drift.
-    poll_scope = JobProposal.accessible_by(current_ability)
-    poll_scope = poll_scope.needs_attention if @needs_attention_only
-    @poll_scope_name = @needs_attention_only ? "needs_attention" : "all_jobs"
-    @poll_signature  = signature_for(poll_scope)
+    # Same scope, no sort/eager-load — used by the client-side poller to
+    # detect drift in the *exact* rendered list (filter + search applied),
+    # so the "Update available" banner only fires for real changes to what
+    # the operator is looking at.
+    @poll_signature = signature_for(filtered_scope(JobProposal.accessible_by(current_ability)))
   end
 
   def show
@@ -66,21 +53,21 @@ class JobProposalsController < ApplicationController
 
   # Lightweight JSON endpoint polled by the layout every 10s to keep the
   # sidebar/home "Needs Attention" badge live and to flag the proposals
-  # index when its underlying list has changed under the operator. The
-  # signature pair (count + max(updated_at)) is cheap to compute and
-  # changes any time a proposal in the relevant scope is touched —
-  # which includes the GmailReplyPollJob flipping status_overlay and
-  # CampaignSweepJob stopping a run, the two writes that motivated this
-  # endpoint. Scoped by ability so each operator only sees their own
-  # tenant's signature.
+  # index when the operator's currently-rendered list has drifted.
+  #
+  # The badge count is always the broad needs_attention count for the
+  # tenant — the sidebar doesn't care about whatever sub-filter the
+  # operator's index page happens to be on. The list_signature, however,
+  # honors the same filter params as #index (filter/status/owner/creator/
+  # location/q) by re-using #filtered_scope, so the "Update available"
+  # banner fires only when something in the operator's actual view has
+  # changed. Sort and pagination don't affect membership and are ignored.
   def poll
     response.headers["Cache-Control"] = "no-store"
-    base  = JobProposal.accessible_by(current_ability)
-    needs = base.needs_attention
+    base = JobProposal.accessible_by(current_ability)
     render json: {
-      needs_attention_count:     needs.count,
-      needs_attention_signature: signature_for(needs),
-      all_jobs_signature:        signature_for(base)
+      needs_attention_count: base.needs_attention.count,
+      list_signature:        signature_for(filtered_scope(base))
     }
   end
 
@@ -446,6 +433,31 @@ class JobProposalsController < ApplicationController
     when :no_campaign     then "Proposal saved. The selected scenario has no campaign attached yet — ask an admin."
     else "Proposal saved."
     end
+  end
+
+  # Applies every index-page filter (filter, status, owner, creator,
+  # location, search) to a JobProposal relation. Single source of truth
+  # for "what proposals the operator's index view contains" — used by
+  # #index to build @job_proposals and by #poll to compute a signature
+  # against the same scope, so the "Update available" banner reflects
+  # the operator's actual view rather than a broader superset.
+  #
+  # Sort and pagination are not applied here — they don't affect set
+  # membership, and the signature must be order-independent.
+  def filtered_scope(base)
+    scope = base
+    if current_user.scoped_to_location?
+      scope = scope.where(location_id: current_user.location_id)
+    elsif params[:location_id].present?
+      scope = scope.where(location_id: params[:location_id])
+    end
+    scope = scope.needs_attention                                if params[:filter] == "needs_attention"
+    scope = scope.where(status: params[:status])                 if params[:status].present?
+    scope = scope.where(owner_id: params[:owner_id])             if params[:owner_id].present?
+    scope = scope.where(created_by_user_id: params[:creator_id]) if params[:creator_id].present?
+    search = params[:q].to_s.strip
+    scope = apply_search(scope, search) if search.present?
+    scope
   end
 
   # "count-maxupdated" for an arbitrary JobProposal scope. Used by #poll to

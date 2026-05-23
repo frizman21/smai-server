@@ -9,6 +9,23 @@ module ApplicationHelper
     page.present? ? "#{page}. #{APP_NAME}" : APP_NAME
   end
 
+  # URL the layout's 10s background poller hits to refresh the Needs
+  # Attention badge and the index-page "Update available" banner. On the
+  # job_proposals index we forward the current filter/search params so the
+  # poll endpoint computes its list_signature against the exact scope the
+  # page rendered — anywhere else, params would just be noise the poll
+  # endpoint ignores, so we send the bare path. Sort and pagination are
+  # dropped because they don't affect set membership.
+  POLL_URL_PASSTHROUGH_KEYS = %w[filter status owner_id creator_id location_id q].freeze
+
+  def current_poll_url
+    if controller_path == "job_proposals" && action_name == "index"
+      poll_job_proposals_path(request.query_parameters.slice(*POLL_URL_PASSTHROUGH_KEYS))
+    else
+      poll_job_proposals_path
+    end
+  end
+
   # Env vars whose absence we want admins warned about in the UI.
   # Mirrors .env.example so a fresh deploy can spot what's missing at a glance.
   REQUIRED_ENV_VARS = %w[
