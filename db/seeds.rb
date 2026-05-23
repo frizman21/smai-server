@@ -27,6 +27,19 @@ demo_owner.update!(tenant: demo_tenant) if demo_owner.tenant != demo_tenant
 demo_owner.update!(first_name: "Jordan", last_name: "Pierce") if demo_owner.first_name.blank? && demo_owner.last_name.blank?
 admin.update!(tenant: demo_tenant) if admin.tenant.nil?
 
+# A rank-and-file teammate inside the demo tenant: not admin, doesn't own
+# any of the demo proposals. Useful for poking at the "what does a regular
+# user see" surface — sidebar contents, proposals they can't edit, ability
+# checks — without having to grant or revoke flags by hand.
+demo_teammate = User.find_or_create_by!(email: "teammate@example.com") do |u|
+  u.password = "Password1"
+  u.password_confirmation = "Password1"
+  u.is_pending = false
+  u.tenant = demo_tenant
+end
+demo_teammate.update!(tenant: demo_tenant) if demo_teammate.tenant != demo_tenant
+demo_teammate.update!(first_name: "Riley", last_name: "Park") if demo_teammate.first_name.blank? && demo_teammate.last_name.blank?
+
 # Two demo locations for the demo tenant. Proposals below are split across
 # them so the Job Proposals location filter has interesting data.
 DEMO_TENANT_LOCATIONS = [
