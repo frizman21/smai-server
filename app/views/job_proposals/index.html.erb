@@ -71,8 +71,13 @@
 <% end %>
 
 <div data-poll-signature="<%= @poll_signature %>">
-  <div class="alert alert-warning d-flex align-items-center justify-content-between mb-3"
-       data-poll-refresh-banner hidden role="status" aria-live="polite">
+  <%# Starts d-none (display:none !important). The `hidden` HTML attribute
+      doesn't work here — Bootstrap's `.d-flex { display: flex !important }`
+      would override it. The poller swaps d-none for d-flex when it
+      detects a signature drift, so the banner stays hidden on initial
+      load and only appears when the underlying list actually changes. %>
+  <div class="alert alert-warning align-items-center justify-content-between mb-3 d-none"
+       data-poll-refresh-banner role="status" aria-live="polite">
     <span><strong>Update available.</strong> This list has changed since you opened it.</span>
     <button type="button" class="btn btn-warning btn-sm ms-3" data-poll-refresh-button>Refresh</button>
   </div>

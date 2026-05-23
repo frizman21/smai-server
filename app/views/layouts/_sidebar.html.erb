@@ -4,9 +4,12 @@
     <%= link_to job_proposals_path(filter: "needs_attention"),
                 class: "nav-link d-flex align-items-center justify-content-between #{'active' if controller_name == 'job_proposals' && params[:filter] == 'needs_attention'}" do %>
       <span>Needs Attention</span>
-      <span class="badge text-bg-danger rounded-pill"
-            data-poll-needs-attention-badge
-            <%= "hidden" if needs_attention_n.zero? %>><%= needs_attention_n %></span>
+      <%# d-none (display:none !important) instead of the `hidden` HTML
+          attribute — Bootstrap's `.badge { display: inline-block }`
+          defeats the UA `[hidden]` rule on cascade order, so the
+          attribute is silently ignored here. %>
+      <span class="badge text-bg-danger rounded-pill <%= "d-none" if needs_attention_n.zero? %>"
+            data-poll-needs-attention-badge><%= needs_attention_n %></span>
     <% end %>
     <%= link_to "Jobs", job_proposals_path, class: "nav-link #{'active' if controller_name == 'job_proposals' && params[:filter] != 'needs_attention'}" %>
     <%= link_to "Analytics", analytics_path, class: "nav-link #{'active' if controller_path == 'analytics'}" %>

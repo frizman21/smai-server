@@ -93,16 +93,16 @@
           }
 
           function applyUpdate(data) {
+            // Bootstrap utility classes (with !important) consistently
+            // beat the HTML `hidden` attribute here, so we toggle d-none
+            // instead. For the refresh banner we also need to flip on
+            // d-flex when showing so the bootstrap flex layout kicks in.
             var n = data.needs_attention_count;
             if (typeof n === "number") {
               var badges = document.querySelectorAll("[data-poll-needs-attention-badge]");
               for (var i = 0; i < badges.length; i++) {
                 badges[i].textContent = n;
-                if (n === 0) {
-                  badges[i].setAttribute("hidden", "");
-                } else {
-                  badges[i].removeAttribute("hidden");
-                }
+                badges[i].classList.toggle("d-none", n === 0);
               }
             }
 
@@ -111,7 +111,10 @@
               var initial = sigEl.dataset.pollSignature;
               if (initial && data.list_signature !== initial) {
                 var banner = document.querySelector("[data-poll-refresh-banner]");
-                if (banner) banner.removeAttribute("hidden");
+                if (banner) {
+                  banner.classList.remove("d-none");
+                  banner.classList.add("d-flex");
+                }
               }
             }
           }

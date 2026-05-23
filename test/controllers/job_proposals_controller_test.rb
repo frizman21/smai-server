@@ -198,6 +198,21 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_match "data-poll-refresh-banner", response.body
   end
 
+  test "the refresh banner starts hidden via d-none, not the hidden attribute" do
+    # Regression: bootstrap's .d-flex (with !important) defeats the UA
+    # [hidden] rule, so the banner appeared on every page load. The fix is
+    # to start with d-none and have the poller swap classes when a drift
+    # is detected.
+    sign_in @user
+    get job_proposals_url(filter: "needs_attention")
+    assert_response :success
+    assert_select '[data-poll-refresh-banner].d-none'
+    assert_select '[data-poll-refresh-banner][hidden]', 0,
+      "the hidden HTML attribute does not work with d-flex; do not rely on it"
+    assert_select '[data-poll-refresh-banner].d-flex', 0,
+      "banner must not start with d-flex; the poller adds it when showing"
+  end
+
   test "filters compose with each other" do
     sign_in @admin
     get job_proposals_url, params: { status: "drafting", owner_id: users(:one).id }
