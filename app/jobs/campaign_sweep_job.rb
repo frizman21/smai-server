@@ -184,7 +184,7 @@ class CampaignSweepJob < ApplicationJob
 
     instance = step_instance.campaign_instance
     instance.reload
-    instance.update!(status: :stopped_on_delivery_issue, ended_at: Time.current) if instance.status_active?
+    stop_instance_with_delivery_issue(instance)
   end
 
   def deliver(step_instance)
@@ -343,7 +343,20 @@ class CampaignSweepJob < ApplicationJob
   def mark_failed(step_instance, instance)
     step_instance.update!(email_delivery_status: :failed)
     instance.reload
-    instance.update!(status: :stopped_on_delivery_issue, ended_at: Time.current) if instance.status_active?
+    stop_instance_with_delivery_issue(instance)
+  end
+
+  # Stops the campaign run with a delivery issue and surfaces it on the
+  # host JobProposal's status_overlay so the proposal shows up in the
+  # "Needs Attention" filter. Mirrors GmailReplyPollJob#flag_bounce — both
+  # synchronous send failures and async bounce detection should drive the
+  # same operator-visible state.
+  def stop_instance_with_delivery_issue(instance)
+    JobProposal.transaction do
+      instance.update!(status: :stopped_on_delivery_issue, ended_at: Time.current) if instance.status_active?
+      host = instance.host
+      host.update!(status_overlay: "delivery_issue") if host.is_a?(JobProposal)
+    end
   end
 
   def complete_instance_if_done(instance)

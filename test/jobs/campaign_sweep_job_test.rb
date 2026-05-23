@@ -259,6 +259,36 @@ class CampaignSweepJobTest < ActiveSupport::TestCase
     assert_not_nil @instance.reload.ended_at, "ended_at should be stamped when the instance is stopped"
   end
 
+  test "a delivery failure flags the proposal so it surfaces in Needs Attention" do
+    # Issue #239 — a synchronous send failure must drive the host proposal's
+    # status_overlay to "delivery_issue", same as an async bounce, so it shows
+    # up in the operator's "Needs Attention" filter on the proposals index.
+    build_step_instance(@step_one, status: :pending, due: 1.minute.ago)
+
+    with_gmail_sender_returning(nil) do
+      CampaignSweepJob.new.perform
+    end
+
+    assert_equal "delivery_issue", @proposal.reload.status_overlay
+    assert_includes JobProposal.needs_attention, @proposal
+  end
+
+  test "a checklist-blocked delivery (BLOCK_DELIVERY_ISSUE) also flags the proposal for Needs Attention" do
+    # Suppression list hits the BLOCK_DELIVERY_ISSUE branch via claim_to_failed,
+    # which is a separate code path from the synchronous send-failure case above.
+    EmailSuppression.create!(
+      location: @proposal.location,
+      email: @proposal.customer_email,
+      reason: "manual"
+    )
+    build_step_instance(@step_one, status: :pending, due: 1.minute.ago)
+
+    CampaignSweepJob.new.perform
+
+    assert_equal "delivery_issue", @proposal.reload.status_overlay
+    assert_includes JobProposal.needs_attention, @proposal
+  end
+
   test "persists gmail send response and thread snapshot on a successful send" do
     step_instance = build_step_instance(@step_one, status: :pending, due: 1.minute.ago)
 
