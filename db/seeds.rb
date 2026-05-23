@@ -16,6 +16,11 @@ admin.update!(first_name: "Avery", last_name: "Sloan") if admin.first_name.blank
 # --- Demo tenant + admin/owner membership ----------------------------------
 
 demo_tenant = Tenant.find_or_create_by!(name: "Demo Roofing Co.")
+# Real ServiceMark customers use Dash as their CRM; making the demo tenant
+# require a DASH job number mirrors that and exercises the JobProposal
+# validation in dash_job_number_required_when_approved. Deterministic
+# here so dev-DB state doesn't drift away from what the seed assumes.
+demo_tenant.update!(job_reference_required: true) unless demo_tenant.job_reference_required
 
 demo_owner = User.find_or_create_by!(email: "owner@example.com") do |u|
   u.password = "Password1"
@@ -266,6 +271,11 @@ DEMO_PROPOSALS.each_with_index do |row, i|
   proposal.customer_zip = row[:zip]
   proposal.proposal_value = row[:value]
   proposal.job_description = row[:description]
+  # Synthetic but stable per-row DASH number — demo_tenant requires one
+  # before a proposal can be saved as :approved (see
+  # JobProposal#dash_job_number_required_when_approved). The index-based
+  # suffix keeps the value deterministic across re-seeds.
+  proposal.dash_job_number = "DASH-2026-#{(1000 + i)}"
   # The row's symbolic :status (:new/:open/:closed) is a demo-state marker
   # used by the closed-branch logic below. The persisted JobProposal.status
   # enum is drafting/approving/approved — every demo row is past the
