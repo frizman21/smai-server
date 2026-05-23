@@ -75,17 +75,28 @@
         <% if delegations.any? %>
           <ul class="list-group list-group-flush">
             <% delegations.each do |d| %>
-              <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                <div>
-                  <div class="fw-semibold"><%= d.email %></div>
-                  <div class="small text-muted">
-                    <%= d.provider.humanize %>
-                    <% if d.expires_at %>
-                      · token <%= d.expired? ? "expired" : "expires" %> <%= time_ago_in_words(d.expires_at, include_seconds: false) %><%= d.expired? ? " ago" : "" %>
-                    <% end %>
+              <li class="list-group-item px-0">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="fw-semibold"><%= d.email %></div>
+                    <div class="small text-muted">
+                      <%= d.provider.humanize %>
+                      <% if d.expires_at %>
+                        · token <%= d.expired? ? "expired" : "expires" %> <%= time_ago_in_words(d.expires_at, include_seconds: false) %><%= d.expired? ? " ago" : "" %>
+                      <% end %>
+                    </div>
                   </div>
+                  <%= button_to "Disconnect", email_delegation_path(d), method: :delete, class: "btn btn-sm btn-outline-danger", form: { class: "m-0", data: { turbo_confirm: "Disconnect #{d.email}?" } } %>
                 </div>
-                <%= button_to "Disconnect", email_delegation_path(d), method: :delete, class: "btn btn-sm btn-outline-danger", form: { class: "m-0", data: { turbo_confirm: "Disconnect #{d.email}?" } } %>
+                <% if d.missing_scopes.any? %>
+                  <div class="alert alert-warning small mt-2 mb-0">
+                    <strong>This connection is missing permissions ServiceMark AI needs:</strong>
+                    <%= d.missing_scopes.map { |s| oauth_scope_label(s) }.to_sentence %>.
+                    Until <%= d.missing_scopes.size == 1 ? "it is" : "they are" %> granted,
+                    your follow-up campaigns may not send or replies may go unnoticed.
+                    Click <strong>Disconnect</strong>, then reconnect and approve every permission Google asks for.
+                  </div>
+                <% end %>
               </li>
             <% end %>
           </ul>

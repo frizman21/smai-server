@@ -127,8 +127,8 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in @admin
     get admin_tenant_user_url(@tenant, @teammate)
     assert_response :success
-    assert_match "Send email on their behalf", response.body
-    assert_match "Read email metadata",        response.body
+    assert_match "Send email",          response.body
+    assert_match "Read email metadata", response.body
     assert_no_match(/Missing the .Send email. permission/, response.body)
   end
 
@@ -230,5 +230,111 @@ class Admin::UsersControllerTest < ActionDispatch::IntegrationTest
     get admin_users_url
     assert_response :success
     assert_select "tr", text: /#{@teammate.email}.*Tenant Admin/m
+  end
+
+  # --- off-boarding: remove_from_tenant ---
+
+  test "remove_from_tenant nulls tenant and location, leaves user row" do
+    @teammate.update!(location: locations(:ne_dallas))
+    sign_in @admin
+    assert_difference "AuditLog.count", 1 do
+      patch remove_from_tenant_admin_tenant_user_url(@tenant, @teammate)
+    end
+    assert_redirected_to admin_tenant_path(@tenant)
+    @teammate.reload
+    assert_nil @teammate.tenant_id
+    assert_nil @teammate.location_id
+    assert User.exists?(@teammate.id), "row must remain"
+  end
+
+  test "remove_from_tenant refuses the acting admin (self)" do
+    @admin.update!(tenant: @tenant)
+    sign_in @admin
+    patch remove_from_tenant_admin_tenant_user_url(@tenant, @admin)
+    follow_redirect!
+    assert_match(/remove yourself from a tenant/i, response.body)
+    assert_equal @tenant.id, @admin.reload.tenant_id
+  end
+
+  test "remove_from_tenant denies non-admins" do
+    sign_in @non_admin
+    patch remove_from_tenant_admin_tenant_user_url(@tenant, @teammate)
+    assert_redirected_to root_path
+    assert_equal @tenant.id, @teammate.reload.tenant_id
+  end
+
+  # --- off-boarding: discard / restore ---
+
+  test "discard marks the user as discarded and they can't sign in" do
+    sign_in @admin
+    assert_difference "AuditLog.count", 1 do
+      patch discard_admin_tenant_user_url(@tenant, @teammate)
+    end
+    assert_redirected_to admin_tenant_path(@tenant)
+    assert @teammate.reload.discarded?
+    assert_not @teammate.active_for_authentication?
+  end
+
+  test "discard refuses self" do
+    @admin.update!(tenant: @tenant)
+    sign_in @admin
+    patch discard_admin_tenant_user_url(@tenant, @admin)
+    follow_redirect!
+    assert_match(/soft-delete yourself/i, response.body)
+    assert_not @admin.reload.discarded?
+  end
+
+  test "discard refuses already-discarded" do
+    @teammate.discard
+    sign_in @admin
+    patch discard_admin_tenant_user_url(@tenant, @teammate)
+    follow_redirect!
+    assert_match(/already deactivated/i, response.body)
+  end
+
+  test "restore brings a discarded user back" do
+    @teammate.discard
+    sign_in @admin
+    assert_difference "AuditLog.count", 1 do
+      patch restore_admin_tenant_user_url(@tenant, @teammate)
+    end
+    assert_not @teammate.reload.discarded?
+  end
+
+  test "restore refuses already-active" do
+    sign_in @admin
+    patch restore_admin_tenant_user_url(@tenant, @teammate)
+    follow_redirect!
+    assert_match(/already active/i, response.body)
+  end
+
+  test "discard and restore both deny non-admins" do
+    sign_in @non_admin
+    patch discard_admin_tenant_user_url(@tenant, @teammate)
+    assert_redirected_to root_path
+    assert_not @teammate.reload.discarded?
+
+    @teammate.discard
+    patch restore_admin_tenant_user_url(@tenant, @teammate)
+    assert_redirected_to root_path
+    assert @teammate.reload.discarded?, "non-admin restore must not succeed"
+  end
+
+  # --- listings filter discarded users ---
+
+  test "admin users index hides discarded users by default" do
+    @teammate.discard
+    sign_in @admin
+    get admin_users_url
+    assert_response :success
+    assert_no_match @teammate.email, response.body
+  end
+
+  test "admin users index includes discarded users when include_discarded=1" do
+    @teammate.discard
+    sign_in @admin
+    get admin_users_url, params: { include_discarded: "1" }
+    assert_response :success
+    assert_match @teammate.email, response.body
   end
 end

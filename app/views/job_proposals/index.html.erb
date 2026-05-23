@@ -70,6 +70,18 @@
   </div>
 <% end %>
 
+<div data-poll-signature="<%= @poll_signature %>">
+  <%# Starts d-none (display:none !important). The `hidden` HTML attribute
+      doesn't work here — Bootstrap's `.d-flex { display: flex !important }`
+      would override it. The poller swaps d-none for d-flex when it
+      detects a signature drift, so the banner stays hidden on initial
+      load and only appears when the underlying list actually changes. %>
+  <div class="alert alert-warning align-items-center justify-content-between mb-3 d-none"
+       data-poll-refresh-banner role="status" aria-live="polite">
+    <span><strong>Update available.</strong> This list has changed since you opened it.</span>
+    <button type="button" class="btn btn-warning btn-sm ms-3" data-poll-refresh-button>Refresh</button>
+  </div>
+
 <% if @job_proposals.any? %>
   <% @job_proposals.each do |jp| %>
     <div class="card shadow-sm mb-2 jp-card">
@@ -92,6 +104,10 @@
               <span class="text-muted me-2">·</span>
             <% end %>
             <span class="text-muted me-2"><%= proposal_job_type_label(jp) || "no job type" %></span>
+            <% if jp.internal_reference.present? %>
+              <span class="text-muted me-2">·</span>
+              <span class="text-muted me-2">Ref #<%= jp.internal_reference %></span>
+            <% end %>
             <% if jp.dash_job_number.present? %>
               <span class="text-muted me-2">·</span>
               <span class="text-muted me-2">DASH #<%= jp.dash_job_number %></span>
@@ -114,3 +130,4 @@
     <div class="card-body p-4 text-center text-muted">No job proposals match these filters.</div>
   </div>
 <% end %>
+</div>

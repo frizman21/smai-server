@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_10_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_23_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -420,6 +420,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_10_130000) do
     t.datetime "created_at", null: false
     t.datetime "current_sign_in_at"
     t.string "current_sign_in_ip"
+    t.datetime "discarded_at"
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
     t.string "first_name"
@@ -438,6 +439,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_10_130000) do
     t.string "time_zone", default: "Central Time (US & Canada)", null: false
     t.string "title"
     t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["location_id"], name: "index_users_on_location_id"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true

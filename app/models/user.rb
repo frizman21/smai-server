@@ -1,4 +1,12 @@
 class User < ApplicationRecord
+  # Soft delete via the discard gem. Unlike JobProposal we deliberately do
+  # NOT set `default_scope { kept }` here — many `belongs_to :*_user`
+  # associations across the codebase (proposal owner, campaign approver,
+  # paper_trail whodunnit lookups) expect a record back even when the user
+  # has been off-boarded, and a default scope would silently null them.
+  # Listings that should hide discarded users opt in explicitly via `.kept`.
+  include Discard::Model
+
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
@@ -9,6 +17,17 @@ class User < ApplicationRecord
   has_many :email_delegations, dependent: :destroy
 
   validates :time_zone, inclusion: { in: ActiveSupport::TimeZone.all.map(&:name) }, allow_blank: true
+
+  # Devise's authentication gate. A discarded user is off-boarded — the row
+  # stays for audit / FK integrity, but they cannot sign in. The paired
+  # #inactive_message keys the flash shown on a blocked sign-in attempt.
+  def active_for_authentication?
+    super && !discarded?
+  end
+
+  def inactive_message
+    discarded? ? :account_deleted : super
+  end
 
   # All provider strings this app uses for Google delegations. OmniAuth's
   # Google strategy registers itself as `google_oauth2` (what

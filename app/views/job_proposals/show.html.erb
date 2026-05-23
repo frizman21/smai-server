@@ -28,15 +28,22 @@
             data-bs-toggle="modal" data-bs-target="#markLostModal">
       Mark Lost
     </button>
-    <%# Pause only makes sense while a CampaignInstance is actively
-        running. A completed run (all steps shipped) or a terminal-stopped
-        run (delivery_issue, customer_reply, etc.) has nothing to pause. %>
+    <%# Pause only makes sense while a campaign is actively running. A
+        campaign that stopped itself when the customer replied isn't
+        finished — "customer waiting" is a hand-off, not an ending — so it
+        gets a Resume button instead, for once the operator has answered. %>
     <% latest_instance = @job_proposal.campaign_instances.order(created_at: :desc).first %>
     <% if latest_instance&.status_active? %>
       <%= button_to "Pause", pause_job_proposal_path(@job_proposal),
             method: :patch,
             class: "btn btn-outline-warning btn-sm",
             form: { class: "d-inline" } %>
+    <% elsif latest_instance&.status_stopped_on_reply? %>
+      <%= button_to "Resume campaign", resume_job_proposal_path(@job_proposal),
+            method: :patch,
+            class: "btn btn-outline-success btn-sm",
+            form: { class: "d-inline", data: { turbo_confirm: "The customer replied and the campaign paused itself. Resume sending the remaining emails?" } },
+            title: "Resume the marketing campaign once you've answered the customer." %>
     <% end %>
   <% end %>
   <%# Soft delete. SMAI staff and tenant admins can both do this — see
@@ -94,6 +101,24 @@
   </div>
   <div class="card-body">
     <dl class="row mb-0">
+      <dt class="col-sm-3">Internal reference</dt>
+      <dd class="col-sm-9">
+        <% if @job_proposal.internal_reference.present? %>
+          <%= @job_proposal.internal_reference %>
+        <% else %>
+          <span class="text-muted">—</span>
+        <% end %>
+      </dd>
+
+      <dt class="col-sm-3">DASH job number</dt>
+      <dd class="col-sm-9">
+        <% if @job_proposal.dash_job_number.present? %>
+          <%= @job_proposal.dash_job_number %>
+        <% else %>
+          <span class="text-muted">—</span>
+        <% end %>
+      </dd>
+
       <dt class="col-sm-3">Job type</dt>
       <dd class="col-sm-9"><%= @job_proposal.job_type&.name || content_tag(:span, "—", class: "text-muted") %></dd>
 
@@ -242,6 +267,7 @@
                           .includes(:campaign_step)
                           .joins(:campaign_step)
                           .order("campaign_steps.sequence_number") %>
+      <% show_dev_actions = Rails.env.development? && current_user.is_admin %>
       <table class="table mb-0 align-middle small mt-2">
         <thead class="table-light">
           <tr>
@@ -250,6 +276,7 @@
             <th style="width: 130px;">Status</th>
             <th style="width: 240px;">When</th>
             <th style="width: 110px;">Thread</th>
+            <% if show_dev_actions %><th style="width: 170px;">Dev</th><% end %>
           </tr>
         </thead>
         <tbody>
@@ -301,6 +328,20 @@
                   <span class="text-muted">—</span>
                 <% end %>
               </td>
+              <% if show_dev_actions %>
+                <td>
+                  <% if step_status == "sent" %>
+                    <%= button_to "Simulate response",
+                          simulate_reply_job_proposal_step_instance_path(@job_proposal, si),
+                          method: :post,
+                          class: "btn btn-outline-secondary btn-sm",
+                          form: { class: "m-0", data: { turbo_confirm: "Synthesize a customer reply and run it through the reply handler? Dev-only." } },
+                          title: "Dev/admin only. Enqueues a Sidekiq job that runs the same handler as a real Gmail reply." %>
+                  <% else %>
+                    <span class="text-muted">—</span>
+                  <% end %>
+                </td>
+              <% end %>
             </tr>
           <% end %>
         </tbody>

@@ -71,7 +71,10 @@ What you'll see on the **Jobs** board:
 What to do:
 
 1. **Click Open in Gmail** on the job's card. Read the full thread and respond.
-2. **When the deal is decided**, mark the job won or lost ([§4e](#4e-marking-a-job-as-won--lost)).
+2. **If the deal is decided**, mark the job won or lost ([§4e](#4e-marking-a-job-as-won--lost)).
+3. **If the conversation should keep going** — the customer had a question, you've answered it, and you still want the automated follow-ups — open the job's detail page and click **Resume campaign** in the top action bar. The remaining steps pick back up on their cadence. The reply you just handled won't stop the campaign a second time; only a *new* reply will.
+
+> *Waiting on the customer* is a hand-off, not an ending — the campaign is paused for you, not finished. Resume it whenever the job should go back to chasing a response.
 
 > **Delivery problem instead of a reply?** If the campaign couldn't deliver an email (bad address, the customer's mailbox bounced it), the action button reads **Fix delivery issue**. Click it to open the job's edit page and correct the customer's email address. *Restarting the campaign from a delivery problem is not yet built* ([#117](https://github.com/frizman21/smai-server/issues/117)) — for now, ask an admin.
 

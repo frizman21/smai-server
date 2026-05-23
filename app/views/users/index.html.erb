@@ -129,6 +129,27 @@
     </div>
   <% end %>
 
+  <div class="card shadow-sm mt-4">
+    <div class="card-header">
+      <h3 class="h6 mb-0">Ignored reply domains</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        A marketing campaign stops on its own as soon as the customer replies.
+        Replies from the domains below are treated as internal — your own team,
+        or ServiceMark AI — so they won't stop a running campaign. Your team's
+        domains come from the email addresses of your account admins above.
+      </p>
+      <% if @reply_ignored_domains.any? %>
+        <% @reply_ignored_domains.each do |domain| %>
+          <span class="badge text-bg-light border me-1 mb-1">@<%= domain %></span>
+        <% end %>
+      <% else %>
+        <span class="text-muted small">No domains are being ignored yet.</span>
+      <% end %>
+    </div>
+  </div>
+
   <% if current_user.can_invite_into_tenant? %>
   <div class="modal fade" id="inviteUserModal" tabindex="-1" aria-labelledby="inviteUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">

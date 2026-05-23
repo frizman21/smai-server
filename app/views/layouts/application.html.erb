@@ -26,7 +26,7 @@
 
   </head>
 
-  <body>
+  <body<% if user_signed_in? %> data-poll-url="<%= current_poll_url %>" data-poll-interval="10000"<% end %>>
     <header class="sticky-top app-header">
       <% if user_signed_in? && current_user.is_admin && (missing = missing_env_vars).any? %>
         <div class="alert alert-warning rounded-0 mb-0 small text-center">
@@ -61,5 +61,76 @@
       </div>
     <% end %>
     <%= render "layouts/footer" %>
+
+    <% if user_signed_in? %>
+      <%# Cheap polling for the sidebar/home "Needs Attention" badge and the
+          proposals-list "Update available" refresh banner. Issue #240: a
+          background Sidekiq job (Gmail reply poll, sweep job) updates a
+          proposal but the operator's open tab has no way to know — so this
+          tiny poller fetches a count + scope signature every 10s and
+          updates the DOM in place. The badge live-updates; the list does
+          NOT auto-replace itself, just surfaces a refresh button so the
+          operator picks the moment they re-render. %>
+      <script>
+        (function () {
+          var url = document.body.dataset.pollUrl;
+          if (!url) return;
+          var interval = parseInt(document.body.dataset.pollInterval, 10) || 10000;
+          var timer = null;
+
+          function schedule() {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(tick, interval);
+          }
+
+          function tick() {
+            if (document.hidden) { schedule(); return; }
+            fetch(url, { headers: { "Accept": "application/json" }, credentials: "same-origin" })
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (data) { if (data) applyUpdate(data); })
+              .catch(function () { /* network blip; try again next tick */ })
+              .finally(schedule);
+          }
+
+          function applyUpdate(data) {
+            // Bootstrap utility classes (with !important) consistently
+            // beat the HTML `hidden` attribute here, so we toggle d-none
+            // instead. For the refresh banner we also need to flip on
+            // d-flex when showing so the bootstrap flex layout kicks in.
+            var n = data.needs_attention_count;
+            if (typeof n === "number") {
+              var badges = document.querySelectorAll("[data-poll-needs-attention-badge]");
+              for (var i = 0; i < badges.length; i++) {
+                badges[i].textContent = n;
+                badges[i].classList.toggle("d-none", n === 0);
+              }
+            }
+
+            var sigEl = document.querySelector("[data-poll-signature]");
+            if (sigEl && data.list_signature) {
+              var initial = sigEl.dataset.pollSignature;
+              if (initial && data.list_signature !== initial) {
+                var banner = document.querySelector("[data-poll-refresh-banner]");
+                if (banner) {
+                  banner.classList.remove("d-none");
+                  banner.classList.add("d-flex");
+                }
+              }
+            }
+          }
+
+          document.addEventListener("visibilitychange", function () {
+            if (!document.hidden) tick();
+          });
+
+          document.addEventListener("click", function (e) {
+            var btn = e.target.closest && e.target.closest("[data-poll-refresh-button]");
+            if (btn) { e.preventDefault(); window.location.reload(); }
+          });
+
+          schedule();
+        })();
+      </script>
+    <% end %>
   </body>
 </html>

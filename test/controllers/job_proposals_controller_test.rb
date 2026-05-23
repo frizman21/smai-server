@@ -107,6 +107,112 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "Alice", response.body             # approved + no overlay — excluded
   end
 
+  # --- poll endpoint (issue #240) ---
+
+  test "poll redirects to sign-in when not signed in" do
+    get poll_job_proposals_url
+    assert_redirected_to new_user_session_path
+  end
+
+  test "poll returns the broad needs_attention count and a list signature" do
+    sign_in @user
+    get poll_job_proposals_url
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_kind_of Integer, body["needs_attention_count"]
+    assert_match(/\A\d+-\d+\z/, body["list_signature"])
+  end
+
+  test "poll scopes everything by ability" do
+    sign_in @user
+    get poll_job_proposals_url
+    user_body = JSON.parse(response.body)
+
+    sign_in @other_tenant_user
+    get poll_job_proposals_url
+    other_body = JSON.parse(response.body)
+
+    assert_not_equal user_body["list_signature"], other_body["list_signature"],
+      "different tenants should have different signatures (tenant isolation)"
+  end
+
+  test "poll signature changes after a row in the scope is updated" do
+    sign_in @user
+    get poll_job_proposals_url
+    before_sig = JSON.parse(response.body)["list_signature"]
+
+    travel 5.seconds do
+      job_proposals(:in_users_org).touch
+    end
+
+    get poll_job_proposals_url
+    after_sig = JSON.parse(response.body)["list_signature"]
+    assert_not_equal before_sig, after_sig
+  end
+
+  test "poll list_signature honors the same filter params as the index" do
+    # The index page narrows by search/status/owner; the poll endpoint must
+    # apply the same narrowing so the banner only fires for changes the
+    # operator's filtered view would actually pick up. Alice and Bob are
+    # both owned by users(:one) in fixtures, so we isolate them with a
+    # search filter — Alice's first name vs Bob's.
+    sign_in @user
+
+    get poll_job_proposals_url(q: "alice")
+    alice_sig = JSON.parse(response.body)["list_signature"]
+
+    travel 5.seconds do
+      job_proposals(:same_tenant_other_org).touch # Bob — outside the q=alice filter
+    end
+    get poll_job_proposals_url(q: "alice")
+    assert_equal alice_sig, JSON.parse(response.body)["list_signature"],
+      "touching a row outside the filter should not change the filtered signature"
+
+    travel 10.seconds do
+      job_proposals(:in_users_org).touch # Alice — inside the q=alice filter
+    end
+    get poll_job_proposals_url(q: "alice")
+    assert_not_equal alice_sig, JSON.parse(response.body)["list_signature"],
+      "touching a row inside the filter should change the filtered signature"
+  end
+
+  test "poll needs_attention_count is the broad badge count, not the filtered list count" do
+    # Whatever sub-filter the operator's index is on, the sidebar badge
+    # represents the whole tenant's queue. Filter params on /poll must not
+    # narrow the badge — only the list_signature.
+    sign_in @user
+    get poll_job_proposals_url
+    unfiltered = JSON.parse(response.body)["needs_attention_count"]
+
+    get poll_job_proposals_url(q: "alice")
+    filtered = JSON.parse(response.body)["needs_attention_count"]
+
+    assert_equal unfiltered, filtered
+  end
+
+  test "index embeds a poll signature for client-side drift detection" do
+    sign_in @user
+    get job_proposals_url(filter: "needs_attention")
+    assert_response :success
+    assert_match(/data-poll-signature="\d+-\d+"/, response.body)
+    assert_match "data-poll-refresh-banner", response.body
+  end
+
+  test "the refresh banner starts hidden via d-none, not the hidden attribute" do
+    # Regression: bootstrap's .d-flex (with !important) defeats the UA
+    # [hidden] rule, so the banner appeared on every page load. The fix is
+    # to start with d-none and have the poller swap classes when a drift
+    # is detected.
+    sign_in @user
+    get job_proposals_url(filter: "needs_attention")
+    assert_response :success
+    assert_select '[data-poll-refresh-banner].d-none'
+    assert_select '[data-poll-refresh-banner][hidden]', 0,
+      "the hidden HTML attribute does not work with d-flex; do not rely on it"
+    assert_select '[data-poll-refresh-banner].d-flex', 0,
+      "banner must not start with d-flex; the poller adds it when showing"
+  end
+
   test "filters compose with each other" do
     sign_in @admin
     get job_proposals_url, params: { status: "drafting", owner_id: users(:one).id }
@@ -289,6 +395,20 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_match "Alice", response.body
   end
 
+  test "show offers a Resume campaign button when the campaign stopped on a customer reply" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(pipeline_stage: "in_campaign", status_overlay: "customer_waiting")
+    CampaignInstance.create!(host: jp, campaign: campaigns(:approved_campaign), status: :stopped_on_reply)
+
+    get job_proposal_url(jp)
+    assert_response :success
+    assert_select "form[action=?][method=post]", resume_job_proposal_path(jp) do
+      assert_select "input[name='_method'][value=patch]"
+    end
+    assert_match(/Resume campaign/i, response.body)
+  end
+
   test "show returns 404 for a proposal outside the user's scope (no info leak)" do
     sign_in @user
     other_jp = job_proposals(:other_tenant)
@@ -319,6 +439,49 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     get job_proposal_url(jp)
     assert_response :success
     assert_match "Job Proposal ##{jp.id}", response.body
+  end
+
+  # --- internal_reference display (issue #230) ---
+
+  test "show renders internal reference and DASH job number in the Job pane" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(internal_reference: "SMAI-2026-0042", dash_job_number: "DASH-2026-0042")
+    get job_proposal_url(jp)
+    assert_response :success
+    # Both labels in the Job card dl
+    assert_match "Internal reference", response.body
+    assert_match "SMAI-2026-0042", response.body
+    assert_match "DASH job number", response.body
+    assert_match "DASH-2026-0042", response.body
+  end
+
+  test "show falls back to an em-dash when internal_reference is blank" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(internal_reference: nil)
+    get job_proposal_url(jp)
+    assert_response :success
+    # The Internal reference row still renders, but with a muted dash.
+    assert_match "Internal reference", response.body
+  end
+
+  test "index card shows internal reference next to DASH for proposals that have one" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(internal_reference: "SMAI-2026-0042")
+    get job_proposals_url
+    assert_response :success
+    assert_match "Ref #SMAI-2026-0042", response.body
+  end
+
+  test "needs_attention list also shows the internal reference" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(status: :drafting, internal_reference: "SMAI-2026-0042")
+    get job_proposals_url(filter: "needs_attention")
+    assert_response :success
+    assert_match "Ref #SMAI-2026-0042", response.body
   end
 
   test "show step table includes a Thread column linking to the Gmail conversation when present" do
@@ -852,6 +1015,53 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     patch resume_job_proposal_url(jp)
     assert_redirected_to job_proposal_path(jp)
     assert_match(/isn't paused/i, flash[:alert])
+  end
+
+  test "resume flips a campaign stopped on a customer reply back to active and clears the overlay" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(pipeline_stage: "in_campaign", status_overlay: "customer_waiting")
+    instance = CampaignInstance.create!(
+      host: jp, campaign: campaigns(:approved_campaign),
+      status: :stopped_on_reply, ended_at: 1.day.ago
+    )
+
+    patch resume_job_proposal_url(jp)
+    assert_redirected_to job_proposal_path(jp)
+    assert_match(/Campaign resumed/i, flash[:notice])
+
+    instance.reload
+    assert instance.status_active?
+    assert_nil instance.ended_at, "ended_at is cleared so the reply poller treats it as live again"
+    assert_nil jp.reload.status_overlay
+  end
+
+  test "resume folds the recorded customer reply into the step snapshot so the poller won't re-stop" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(pipeline_stage: "in_campaign", status_overlay: "customer_waiting")
+    instance = CampaignInstance.create!(
+      host: jp, campaign: campaigns(:approved_campaign), status: :stopped_on_reply
+    )
+    reply = { "id" => "reply-1", "payload" => { "headers" => [] } }
+    step = CampaignStepInstance.create!(
+      campaign_instance: instance,
+      campaign_step: campaign_steps(:approved_step_one),
+      planned_delivery_at: 1.hour.ago,
+      email_delivery_status: :sent,
+      final_subject: "s", final_body: "b",
+      gmail_thread_id: "t1",
+      gmail_thread_snapshot: { "id" => "t1", "messages" => [{ "id" => "sent-1" }] },
+      customer_replied: true,
+      gmail_reply_payload: reply
+    )
+
+    patch resume_job_proposal_url(jp)
+
+    step.reload
+    assert_not step.customer_replied, "step is unflagged once the reply is absorbed"
+    assert_equal %w[sent-1 reply-1], step.gmail_thread_snapshot["messages"].map { |m| m["id"] },
+      "the recorded reply becomes part of the baseline snapshot"
   end
 
   # --- launch_campaign (manual relaunch from the show page) ---------------

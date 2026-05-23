@@ -28,9 +28,8 @@
 
   <div class="col-md-6">
     <%= link_to job_proposals_path(filter: "needs_attention"), class: "card h-100 text-decoration-none text-reset home-card position-relative" do %>
-      <% if needs_attention_n > 0 %>
-        <span class="badge text-bg-danger rounded-pill position-absolute top-0 end-0 m-3"><%= needs_attention_n %></span>
-      <% end %>
+      <span class="badge text-bg-danger rounded-pill position-absolute top-0 end-0 m-3 <%= "d-none" if needs_attention_n.zero? %>"
+            data-poll-needs-attention-badge><%= needs_attention_n %></span>
       <div class="card-body p-4 text-center">
         <div class="home-card-icon mx-auto mb-3">
           <svg viewBox="0 0 24 24" aria-hidden="true">

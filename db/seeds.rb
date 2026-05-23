@@ -16,6 +16,11 @@ admin.update!(first_name: "Avery", last_name: "Sloan") if admin.first_name.blank
 # --- Demo tenant + admin/owner membership ----------------------------------
 
 demo_tenant = Tenant.find_or_create_by!(name: "Demo Roofing Co.")
+# Real ServiceMark customers use Dash as their CRM; making the demo tenant
+# require a DASH job number mirrors that and exercises the JobProposal
+# validation in dash_job_number_required_when_approved. Deterministic
+# here so dev-DB state doesn't drift away from what the seed assumes.
+demo_tenant.update!(job_reference_required: true) unless demo_tenant.job_reference_required
 
 demo_owner = User.find_or_create_by!(email: "owner@example.com") do |u|
   u.password = "Password1"
@@ -26,6 +31,19 @@ end
 demo_owner.update!(tenant: demo_tenant) if demo_owner.tenant != demo_tenant
 demo_owner.update!(first_name: "Jordan", last_name: "Pierce") if demo_owner.first_name.blank? && demo_owner.last_name.blank?
 admin.update!(tenant: demo_tenant) if admin.tenant.nil?
+
+# A rank-and-file teammate inside the demo tenant: not admin, doesn't own
+# any of the demo proposals. Useful for poking at the "what does a regular
+# user see" surface — sidebar contents, proposals they can't edit, ability
+# checks — without having to grant or revoke flags by hand.
+demo_teammate = User.find_or_create_by!(email: "teammate@example.com") do |u|
+  u.password = "Password1"
+  u.password_confirmation = "Password1"
+  u.is_pending = false
+  u.tenant = demo_tenant
+end
+demo_teammate.update!(tenant: demo_tenant) if demo_teammate.tenant != demo_tenant
+demo_teammate.update!(first_name: "Riley", last_name: "Park") if demo_teammate.first_name.blank? && demo_teammate.last_name.blank?
 
 # Two demo locations for the demo tenant. Proposals below are split across
 # them so the Job Proposals location filter has interesting data.
@@ -253,6 +271,13 @@ DEMO_PROPOSALS.each_with_index do |row, i|
   proposal.customer_zip = row[:zip]
   proposal.proposal_value = row[:value]
   proposal.job_description = row[:description]
+  # Synthetic but stable per-row DASH number — demo_tenant requires one
+  # before a proposal can be saved as :approved (see
+  # JobProposal#dash_job_number_required_when_approved). The index-based
+  # suffix keeps the value deterministic across re-seeds. The stored
+  # value is just the identifier ("2026-1000", etc.) — the UI prepends
+  # "DASH #" itself, so embedding it here would render as "DASH #DASH-…".
+  proposal.dash_job_number = "2026-#{(1000 + i)}"
   # The row's symbolic :status (:new/:open/:closed) is a demo-state marker
   # used by the closed-branch logic below. The persisted JobProposal.status
   # enum is drafting/approving/approved — every demo row is past the

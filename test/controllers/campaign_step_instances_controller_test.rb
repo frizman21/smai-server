@@ -211,4 +211,63 @@ class CampaignStepInstancesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match(/no Gmail thread id/i, response.body)
   end
+
+  # --- simulate_reply (dev-only diagnostic) ---
+
+  test "simulate_reply refuses non-admin users even in development" do
+    @step_instance.update!(email_delivery_status: :sent, final_subject: "x", final_body: "y")
+    sign_in @user  # tenant member, not is_admin
+    with_rails_env("development") do
+      assert_no_enqueued_jobs only: SimulateCustomerReplyJob do
+        post simulate_reply_job_proposal_step_instance_url(@proposal, @step_instance)
+      end
+    end
+    follow_redirect!
+    assert_match(/development-only diagnostic/i, response.body)
+  end
+
+  test "simulate_reply refuses admins outside development" do
+    @step_instance.update!(email_delivery_status: :sent, final_subject: "x", final_body: "y")
+    sign_in users(:admin)
+    with_rails_env("production") do
+      assert_no_enqueued_jobs only: SimulateCustomerReplyJob do
+        post simulate_reply_job_proposal_step_instance_url(@proposal, @step_instance)
+      end
+    end
+  end
+
+  test "simulate_reply refuses on non-sent steps so we don't pretend a never-shipped step got a reply" do
+    @step_instance.update!(email_delivery_status: :pending)
+    sign_in users(:admin)
+    with_rails_env("development") do
+      assert_no_enqueued_jobs only: SimulateCustomerReplyJob do
+        post simulate_reply_job_proposal_step_instance_url(@proposal, @step_instance)
+      end
+    end
+    follow_redirect!
+    assert_match(/Only sent steps/i, response.body)
+  end
+
+  test "simulate_reply enqueues SimulateCustomerReplyJob for an admin in development against a sent step" do
+    @step_instance.update!(email_delivery_status: :sent, final_subject: "x", final_body: "y")
+    sign_in users(:admin)
+    with_rails_env("development") do
+      assert_enqueued_with(job: SimulateCustomerReplyJob, args: [@step_instance.id]) do
+        post simulate_reply_job_proposal_step_instance_url(@proposal, @step_instance)
+      end
+    end
+    assert_redirected_to job_proposal_path(@proposal)
+    follow_redirect!
+    assert_match(/Simulated customer reply enqueued/i, response.body)
+  end
+
+  private
+
+  def with_rails_env(env)
+    original = Rails.env
+    Rails.env = ActiveSupport::StringInquirer.new(env)
+    yield
+  ensure
+    Rails.env = original
+  end
 end

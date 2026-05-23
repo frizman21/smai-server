@@ -104,6 +104,17 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_match "Originator", response.body
   end
 
+  test "lists the ignored reply domains for the tenant" do
+    sign_in @user
+    get users_url
+    assert_response :success
+    assert_match(/Ignored reply domains/i, response.body)
+    # @user is the account owner (no location); its email domain is the
+    # tenant's own domain, alongside the platform domain.
+    assert_match "@example.com", response.body
+    assert_match "@servicemark.ai", response.body
+  end
+
   # --- edit / update ------------------------------------------------------
 
   test "edit redirects to sign-in when not signed in" do

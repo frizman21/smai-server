@@ -3,9 +3,10 @@
 <h1 class="h3 mb-4">Trash</h1>
 
 <p class="text-muted small mb-4">
-  Soft-deleted campaigns and job proposals. Admins can restore from here.
+  Soft-deleted campaigns, job proposals, and users. Admins can restore from here.
   The rest of the app treats these as gone — they don't show up on lists,
-  the sweep job won't ship steps for them, and analytics ignores them.
+  the sweep job won't ship steps for them, deactivated users can't sign in,
+  and analytics ignores them.
 </p>
 
 <div class="card shadow-sm mb-4">
@@ -42,6 +43,56 @@
       </table>
     <% else %>
       <div class="p-4 text-center text-muted small">No discarded campaigns.</div>
+    <% end %>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h5 mb-0">Users</h2>
+    <span class="badge text-bg-secondary"><%= @discarded_users.size %></span>
+  </div>
+  <div class="card-body p-0">
+    <% if @discarded_users.any? %>
+      <table class="table mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Email</th>
+            <th>Name</th>
+            <th>Tenant</th>
+            <th>Deactivated</th>
+            <th class="text-end" style="width: 1%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @discarded_users.each do |user| %>
+            <tr>
+              <td><%= user.email %></td>
+              <td><%= user.full_name || content_tag(:span, "—", class: "text-muted") %></td>
+              <td>
+                <% if user.tenant %>
+                  <%= user.tenant.name %>
+                <% else %>
+                  <span class="text-muted fst-italic small">No tenant</span>
+                <% end %>
+              </td>
+              <td><%= time_ago_in_words(user.discarded_at) %> ago</td>
+              <td class="text-end">
+                <% if user.tenant %>
+                  <%= button_to "Reactivate", restore_admin_tenant_user_path(user.tenant, user),
+                        method: :patch,
+                        class: "btn btn-sm btn-outline-primary",
+                        form: { class: "m-0" } %>
+                <% else %>
+                  <span class="text-muted small">No tenant — restore via console</span>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div class="p-4 text-center text-muted small">No deactivated users.</div>
     <% end %>
   </div>
 </div>
