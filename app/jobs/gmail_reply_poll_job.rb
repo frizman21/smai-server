@@ -8,7 +8,7 @@ require "net/http"
 # own Gmail — so the conversation lives in *their* mailbox, not the
 # shared ApplicationMailbox. The poller authenticates per-step as that
 # originator's EmailDelegation; a step whose originator has since
-disconnected Gmail is logged and skipped, and the next tick retries.
+# disconnected Gmail is logged and skipped, and the next tick retries.
 #
 # Eligibility (per-campaign-instance, latest sent step only):
 #   - Step has a stored gmail_thread_id.
