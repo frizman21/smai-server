@@ -28,15 +28,22 @@
             data-bs-toggle="modal" data-bs-target="#markLostModal">
       Mark Lost
     </button>
-    <%# Pause only makes sense while a CampaignInstance is actively
-        running. A completed run (all steps shipped) or a terminal-stopped
-        run (delivery_issue, customer_reply, etc.) has nothing to pause. %>
+    <%# Pause only makes sense while a campaign is actively running. A
+        campaign that stopped itself when the customer replied isn't
+        finished — "customer waiting" is a hand-off, not an ending — so it
+        gets a Resume button instead, for once the operator has answered. %>
     <% latest_instance = @job_proposal.campaign_instances.order(created_at: :desc).first %>
     <% if latest_instance&.status_active? %>
       <%= button_to "Pause", pause_job_proposal_path(@job_proposal),
             method: :patch,
             class: "btn btn-outline-warning btn-sm",
             form: { class: "d-inline" } %>
+    <% elsif latest_instance&.status_stopped_on_reply? %>
+      <%= button_to "Resume campaign", resume_job_proposal_path(@job_proposal),
+            method: :patch,
+            class: "btn btn-outline-success btn-sm",
+            form: { class: "d-inline", data: { turbo_confirm: "The customer replied and the campaign paused itself. Resume sending the remaining emails?" } },
+            title: "Resume the marketing campaign once you've answered the customer." %>
     <% end %>
   <% end %>
   <%# Soft delete. SMAI staff and tenant admins can both do this — see

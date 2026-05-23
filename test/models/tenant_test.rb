@@ -52,4 +52,65 @@ class TenantTest < ActiveSupport::TestCase
     assert_match(/rails\/active_storage\/blobs/, tenant.logo_image_url)
     refute_match(/manual.png/, tenant.logo_image_url)
   end
+
+  # --- reply-ignored domains ---------------------------------------------
+
+  test "email_domain extracts the lowercased domain" do
+    assert_equal "acme.com", Tenant.email_domain("Owner@Acme.com")
+    assert_equal "acme.com", Tenant.email_domain(" owner@acme.com ".strip)
+  end
+
+  test "email_domain returns nil for values with no domain part" do
+    assert_nil Tenant.email_domain(nil)
+    assert_nil Tenant.email_domain("")
+    assert_nil Tenant.email_domain("not-an-email")
+    assert_nil Tenant.email_domain("trailing@")
+  end
+
+  test "reply_ignored_domains includes the account owners' domains and the platform domain" do
+    tenant = Tenant.create!(name: "Restoration Co")
+    User.create!(email: "owner@restoration.co", password: "Password1", tenant: tenant)
+
+    domains = tenant.reply_ignored_domains
+    assert_includes domains, "restoration.co"
+    assert_includes domains, Tenant::SERVICEMARK_DOMAIN
+  end
+
+  test "reply_ignored_domains excludes the domains of location-scoped users" do
+    tenant = Tenant.create!(name: "Restoration Co")
+    location = tenant.locations.create!(
+      display_name: "Main", address_line_1: "1 Main", city: "Dallas",
+      state: "TX", postal_code: "75001", phone_number: "(214) 555-0101", is_active: true
+    )
+    User.create!(email: "owner@restoration.co", password: "Password1", tenant: tenant)
+    User.create!(email: "tech@gmail.com", password: "Password1", tenant: tenant, location: location)
+
+    assert_not_includes tenant.reply_ignored_domains, "gmail.com"
+  end
+
+  test "reply_ignored_domains de-dupes owners that share a domain" do
+    tenant = Tenant.create!(name: "Restoration Co")
+    User.create!(email: "owner-a@restoration.co", password: "Password1", tenant: tenant)
+    User.create!(email: "owner-b@restoration.co", password: "Password1", tenant: tenant)
+
+    assert_equal 1, tenant.reply_ignored_domains.count("restoration.co")
+  end
+
+  test "reply_ignored_sender? is true for the tenant's own domain and the platform domain" do
+    tenant = Tenant.create!(name: "Restoration Co")
+    User.create!(email: "owner@restoration.co", password: "Password1", tenant: tenant)
+
+    assert tenant.reply_ignored_sender?("someone-else@restoration.co")
+    assert tenant.reply_ignored_sender?("staff@servicemark.ai")
+    assert tenant.reply_ignored_sender?("Owner@Restoration.CO"), "matching is case-insensitive"
+  end
+
+  test "reply_ignored_sender? is false for an outside customer and blank input" do
+    tenant = Tenant.create!(name: "Restoration Co")
+    User.create!(email: "owner@restoration.co", password: "Password1", tenant: tenant)
+
+    assert_not tenant.reply_ignored_sender?("customer@elsewhere.com")
+    assert_not tenant.reply_ignored_sender?(nil)
+    assert_not tenant.reply_ignored_sender?("")
+  end
 end

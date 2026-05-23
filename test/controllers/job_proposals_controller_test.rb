@@ -289,6 +289,20 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_match "Alice", response.body
   end
 
+  test "show offers a Resume campaign button when the campaign stopped on a customer reply" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(pipeline_stage: "in_campaign", status_overlay: "customer_waiting")
+    CampaignInstance.create!(host: jp, campaign: campaigns(:approved_campaign), status: :stopped_on_reply)
+
+    get job_proposal_url(jp)
+    assert_response :success
+    assert_select "form[action=?][method=post]", resume_job_proposal_path(jp) do
+      assert_select "input[name='_method'][value=patch]"
+    end
+    assert_match(/Resume campaign/i, response.body)
+  end
+
   test "show returns 404 for a proposal outside the user's scope (no info leak)" do
     sign_in @user
     other_jp = job_proposals(:other_tenant)
@@ -852,6 +866,53 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     patch resume_job_proposal_url(jp)
     assert_redirected_to job_proposal_path(jp)
     assert_match(/isn't paused/i, flash[:alert])
+  end
+
+  test "resume flips a campaign stopped on a customer reply back to active and clears the overlay" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(pipeline_stage: "in_campaign", status_overlay: "customer_waiting")
+    instance = CampaignInstance.create!(
+      host: jp, campaign: campaigns(:approved_campaign),
+      status: :stopped_on_reply, ended_at: 1.day.ago
+    )
+
+    patch resume_job_proposal_url(jp)
+    assert_redirected_to job_proposal_path(jp)
+    assert_match(/Campaign resumed/i, flash[:notice])
+
+    instance.reload
+    assert instance.status_active?
+    assert_nil instance.ended_at, "ended_at is cleared so the reply poller treats it as live again"
+    assert_nil jp.reload.status_overlay
+  end
+
+  test "resume folds the recorded customer reply into the step snapshot so the poller won't re-stop" do
+    sign_in @user
+    jp = job_proposals(:in_users_org)
+    jp.update!(pipeline_stage: "in_campaign", status_overlay: "customer_waiting")
+    instance = CampaignInstance.create!(
+      host: jp, campaign: campaigns(:approved_campaign), status: :stopped_on_reply
+    )
+    reply = { "id" => "reply-1", "payload" => { "headers" => [] } }
+    step = CampaignStepInstance.create!(
+      campaign_instance: instance,
+      campaign_step: campaign_steps(:approved_step_one),
+      planned_delivery_at: 1.hour.ago,
+      email_delivery_status: :sent,
+      final_subject: "s", final_body: "b",
+      gmail_thread_id: "t1",
+      gmail_thread_snapshot: { "id" => "t1", "messages" => [{ "id" => "sent-1" }] },
+      customer_replied: true,
+      gmail_reply_payload: reply
+    )
+
+    patch resume_job_proposal_url(jp)
+
+    step.reload
+    assert_not step.customer_replied, "step is unflagged once the reply is absorbed"
+    assert_equal %w[sent-1 reply-1], step.gmail_thread_snapshot["messages"].map { |m| m["id"] },
+      "the recorded reply becomes part of the baseline snapshot"
   end
 
   # --- launch_campaign (manual relaunch from the show page) ---------------

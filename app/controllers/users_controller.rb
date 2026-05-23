@@ -17,10 +17,12 @@ class UsersController < ApplicationController
         Invitation.none
       end
       @invite_locations = @tenant.locations.active.order(:display_name)
+      @reply_ignored_domains = @tenant.reply_ignored_domains
     else
       @users = User.none
       @pending_invitations = Invitation.none
       @invite_locations = Location.none
+      @reply_ignored_domains = []
     end
     @invitation = Invitation.new
   end
