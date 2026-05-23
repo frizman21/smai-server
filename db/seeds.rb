@@ -274,8 +274,10 @@ DEMO_PROPOSALS.each_with_index do |row, i|
   # Synthetic but stable per-row DASH number — demo_tenant requires one
   # before a proposal can be saved as :approved (see
   # JobProposal#dash_job_number_required_when_approved). The index-based
-  # suffix keeps the value deterministic across re-seeds.
-  proposal.dash_job_number = "DASH-2026-#{(1000 + i)}"
+  # suffix keeps the value deterministic across re-seeds. The stored
+  # value is just the identifier ("2026-1000", etc.) — the UI prepends
+  # "DASH #" itself, so embedding it here would render as "DASH #DASH-…".
+  proposal.dash_job_number = "2026-#{(1000 + i)}"
   # The row's symbolic :status (:new/:open/:closed) is a demo-state marker
   # used by the closed-branch logic below. The persisted JobProposal.status
   # enum is drafting/approving/approved — every demo row is past the
