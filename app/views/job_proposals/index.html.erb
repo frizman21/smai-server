@@ -70,6 +70,13 @@
   </div>
 <% end %>
 
+<div data-poll-scope="<%= @poll_scope_name %>" data-poll-signature="<%= @poll_signature %>">
+  <div class="alert alert-warning d-flex align-items-center justify-content-between mb-3"
+       data-poll-refresh-banner hidden role="status" aria-live="polite">
+    <span><strong>Update available.</strong> This list has changed since you opened it.</span>
+    <button type="button" class="btn btn-warning btn-sm ms-3" data-poll-refresh-button>Refresh</button>
+  </div>
+
 <% if @job_proposals.any? %>
   <% @job_proposals.each do |jp| %>
     <div class="card shadow-sm mb-2 jp-card">
@@ -114,3 +121,4 @@
     <div class="card-body p-4 text-center text-muted">No job proposals match these filters.</div>
   </div>
 <% end %>
+</div>

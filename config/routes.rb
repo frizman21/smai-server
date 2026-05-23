@@ -30,6 +30,9 @@ Rails.application.routes.draw do
   get "/auth/failure", to: "email_delegations#failure", as: :email_delegation_failure
   resources :email_delegations, only: [:destroy]
   resources :job_proposals, only: [:index, :show, :new, :create, :edit, :update, :destroy] do
+    collection do
+      get :poll
+    end
     member do
       patch :resume
       patch :pause

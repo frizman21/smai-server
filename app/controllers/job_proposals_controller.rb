@@ -48,11 +48,40 @@ class JobProposalsController < ApplicationController
     sort_dir    = ALLOWED_DIRS.include?(params[:dir])  ? params[:dir]  : "desc"
 
     @job_proposals = scope.order(sort_column => sort_dir, id: :desc)
+
+    # The poll endpoint computes signatures against the broad
+    # accessible_by(current_ability) scope (optionally narrowed by
+    # needs_attention). Compute the matching signature here so the rendered
+    # page can embed it and the client-side poll can detect a drift.
+    poll_scope = JobProposal.accessible_by(current_ability)
+    poll_scope = poll_scope.needs_attention if @needs_attention_only
+    @poll_scope_name = @needs_attention_only ? "needs_attention" : "all_jobs"
+    @poll_signature  = signature_for(poll_scope)
   end
 
   def show
     @job_proposal = JobProposal.accessible_by(current_ability).find(params[:id])
     @loss_reason_options = LossReason.ordered
+  end
+
+  # Lightweight JSON endpoint polled by the layout every 10s to keep the
+  # sidebar/home "Needs Attention" badge live and to flag the proposals
+  # index when its underlying list has changed under the operator. The
+  # signature pair (count + max(updated_at)) is cheap to compute and
+  # changes any time a proposal in the relevant scope is touched —
+  # which includes the GmailReplyPollJob flipping status_overlay and
+  # CampaignSweepJob stopping a run, the two writes that motivated this
+  # endpoint. Scoped by ability so each operator only sees their own
+  # tenant's signature.
+  def poll
+    response.headers["Cache-Control"] = "no-store"
+    base  = JobProposal.accessible_by(current_ability)
+    needs = base.needs_attention
+    render json: {
+      needs_attention_count:     needs.count,
+      needs_attention_signature: signature_for(needs),
+      all_jobs_signature:        signature_for(base)
+    }
   end
 
   def new
@@ -417,6 +446,17 @@ class JobProposalsController < ApplicationController
     when :no_campaign     then "Proposal saved. The selected scenario has no campaign attached yet — ask an admin."
     else "Proposal saved."
     end
+  end
+
+  # "count-maxupdated" for an arbitrary JobProposal scope. Used by #poll to
+  # cheaply detect whether the rendered index page is stale relative to the
+  # current database — any insert, update, or status change against rows in
+  # the scope bumps either piece. Kept here (and not on JobProposal) so the
+  # index action and #poll share one definition.
+  def signature_for(scope)
+    count  = scope.count
+    max_at = scope.maximum(:updated_at)
+    "#{count}-#{max_at&.to_i || 0}"
   end
 
   # Case-insensitive substring match across customer name, address fields,
