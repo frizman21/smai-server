@@ -82,6 +82,15 @@
         <% end %>
       </dd>
 
+      <dt class="col-sm-3">Phone</dt>
+      <dd class="col-sm-9">
+        <% if @job_proposal.customer_phone.present? %>
+          <%= @job_proposal.customer_phone %>
+        <% else %>
+          <span class="text-muted">—</span>
+        <% end %>
+      </dd>
+
       <dt class="col-sm-3">Address</dt>
       <dd class="col-sm-9">
         <% if @job_proposal.short_address %>

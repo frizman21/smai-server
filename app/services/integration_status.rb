@@ -31,7 +31,14 @@ class IntegrationStatus
       app_host,
       sentry,
       test_to_email
-    ]
+    ] + sms_provider_rows
+  end
+
+  # One row per known SMS provider (currently only Twilio). The provider
+  # itself owns its label, env-var list, and recommendation text — see
+  # SmsSender for the dispatch contract.
+  def sms_provider_rows
+    SmsSender.provider_status_rows
   end
 
   private

@@ -19,7 +19,10 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    setup { GmailSender.reset_deliveries! }
+    setup do
+      GmailSender.reset_deliveries!
+      SmsSender.reset_deliveries!
+    end
 
     # Add more helper methods to be used by all tests here...
   end

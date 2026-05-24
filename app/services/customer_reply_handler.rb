@@ -34,5 +34,10 @@ class CustomerReplyHandler
       end
       host.update!(status_overlay: "customer_waiting") if host.is_a?(JobProposal)
     end
+
+    # Enqueue *after* the transaction commits so the SMS job doesn't
+    # observe stale state if the surrounding write rolls back. The job
+    # itself no-ops when no SMS provider is configured.
+    ProposalReplyNotificationJob.perform_later(@step_instance.id) if host.is_a?(JobProposal)
   end
 end

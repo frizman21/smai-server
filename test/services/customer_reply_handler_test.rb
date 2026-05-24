@@ -1,6 +1,7 @@
 require "test_helper"
 
 class CustomerReplyHandlerTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
   setup do
     @proposal = job_proposals(:in_users_org)
     @proposal.update!(
@@ -62,5 +63,11 @@ class CustomerReplyHandlerTest < ActiveSupport::TestCase
     # reply landing, and the whole point of issue #240's plumbing.
     CustomerReplyHandler.flag!(@step_instance, @reply_payload)
     assert_includes JobProposal.needs_attention, @proposal.reload
+  end
+
+  test "enqueues a ProposalReplyNotificationJob so the owner gets a text" do
+    assert_enqueued_with(job: ProposalReplyNotificationJob, args: [@step_instance.id]) do
+      CustomerReplyHandler.flag!(@step_instance, @reply_payload)
+    end
   end
 end

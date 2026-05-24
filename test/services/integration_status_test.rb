@@ -6,6 +6,7 @@ class IntegrationStatusTest < ActiveSupport::TestCase
     APP_HOST TEST_TO_EMAIL REDIS_URL
     GCS_PROJECT GCS_BUCKET GCS_CREDENTIALS
     AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION AWS_BUCKET
+    TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_FROM_NUMBER
   ].freeze
 
   setup do
@@ -20,11 +21,37 @@ class IntegrationStatusTest < ActiveSupport::TestCase
 
   test "all returns one Status per integration" do
     statuses = IntegrationStatus.all
-    assert_equal 8, statuses.size
+    assert_equal 9, statuses.size
     statuses.each do |s|
       assert_kind_of IntegrationStatus::Status, s
       assert_includes %i[ok warn missing], s.state
     end
+  end
+
+  # --- SMS (Twilio) -------------------------------------------------------
+
+  test "twilio SMS is :missing when no env vars are set" do
+    s = find_status("Text messaging (Twilio)")
+    assert_equal :missing, s.state
+    assert_match "TWILIO_ACCOUNT_SID", s.recommendation
+  end
+
+  test "twilio SMS is :warn when partially configured" do
+    ENV["TWILIO_ACCOUNT_SID"] = "AC123"
+    s = find_status("Text messaging (Twilio)")
+    assert_equal :warn, s.state
+    assert_match "TWILIO_AUTH_TOKEN", s.details
+    assert_match "TWILIO_FROM_NUMBER", s.details
+  end
+
+  test "twilio SMS is :ok when all three env vars are set" do
+    ENV["TWILIO_ACCOUNT_SID"] = "AC1234567890"
+    ENV["TWILIO_AUTH_TOKEN"]  = "secret"
+    ENV["TWILIO_FROM_NUMBER"] = "+15555550123"
+    s = find_status("Text messaging (Twilio)")
+    assert_equal :ok, s.state
+    assert_match "+15555550123", s.details
+    refute_match "secret", s.details
   end
 
   # --- Application mailbox ------------------------------------------------
