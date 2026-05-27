@@ -420,6 +420,8 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     sign_in @user
     get job_proposal_url(id: 0)
     assert_response :not_found
+    assert_match "This job couldn't be found.", response.body
+    assert_select "a[href=?]", job_proposals_path, text: /Back to Jobs/
   end
 
   test "show renders the customer's email in the Customer section as a mailto link" do

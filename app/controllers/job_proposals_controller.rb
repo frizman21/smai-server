@@ -49,6 +49,8 @@ class JobProposalsController < ApplicationController
   def show
     @job_proposal = JobProposal.accessible_by(current_ability).find(params[:id])
     @loss_reason_options = LossReason.ordered
+  rescue ActiveRecord::RecordNotFound
+    render :not_found, status: :not_found
   end
 
   # Lightweight JSON endpoint polled by the layout every 10s to keep the
