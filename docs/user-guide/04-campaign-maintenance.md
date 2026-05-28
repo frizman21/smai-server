@@ -80,12 +80,12 @@ What to do:
 
 ## 4e. Marking a job as won / lost
 
-Open the job's detail page. Two buttons sit in the top action bar next to the page title:
+Open the job's detail page. A row with two equal-width buttons sits near the top of the page — **Mark Won** (checkmark) on the left, **Mark Lost** (×) on the right. Both buttons are plain outlined buttons; neither is colored red on its default state, so you have to open the confirmation before anything changes.
 
-- **Mark Won** — single click. The job's pipeline stage flips to *Won* and the campaign stops if it was still running.
+- **Mark Won** — opens a short confirmation dialog. Click **Mark Won** in the dialog to confirm. The job's pipeline stage flips to *Won* and the campaign stops if it was still running.
 - **Mark Lost** — opens a small dialog. Both fields are required:
   - **Loss reason** — pick one from a fixed dropdown: *Price too high*, *Went with competitor*, *Insurance issue*, *No response from customer*, *Timing / scheduling conflict*, or *Other*. The fixed list keeps loss data clean enough to slice in Analytics.
   - **Loss notes** — any context worth recording about why the deal didn't move forward.
   Click **Mark Lost** in the dialog to confirm.
 
-Once a job is Won or Lost, those buttons are replaced by **Revert to in campaign** — useful if you clicked the wrong one. Reverting puts the job back into its prior state.
+Once a job is Won or Lost, the outcome row disappears and a **Revert to in campaign** button appears next to the page title instead — useful if you clicked the wrong one. Reverting puts the job back into its prior state.

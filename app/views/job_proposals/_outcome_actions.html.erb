@@ -1,0 +1,29 @@
+<%# SPEC-09 v1.2.1 §8.1: outcome action row between the Pipeline Stage
+    Tracker and the Customer card. Both buttons are neutral-outlined —
+    explicitly no red on the default Mark Lost state. Hidden once the job
+    has a terminal pipeline stage (won/lost) — the "Revert to in campaign"
+    button in the header takes over in that case. %>
+<% unless @job_proposal.pipeline_stage_won? || @job_proposal.pipeline_stage_lost? %>
+  <div class="row g-2 mb-4">
+    <div class="col-6">
+      <button type="button" class="btn btn-outline-secondary w-100"
+              data-bs-toggle="modal" data-bs-target="#markWonModal">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+             viewBox="0 0 16 16" class="me-1" aria-hidden="true">
+          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Mark Won
+      </button>
+    </div>
+    <div class="col-6">
+      <button type="button" class="btn btn-outline-secondary w-100"
+              data-bs-toggle="modal" data-bs-target="#markLostModal">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+             viewBox="0 0 16 16" class="me-1" aria-hidden="true">
+          <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+        </svg>
+        Mark Lost
+      </button>
+    </div>
+  </div>
+<% end %>

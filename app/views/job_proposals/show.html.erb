@@ -20,14 +20,9 @@
           form: { class: "d-inline" },
           title: "Undo an accidental Mark Won / Mark Lost." %>
   <% else %>
-    <button type="button" class="btn btn-outline-success btn-sm"
-            data-bs-toggle="modal" data-bs-target="#markWonModal">
-      Mark Won
-    </button>
-    <button type="button" class="btn btn-outline-danger btn-sm"
-            data-bs-toggle="modal" data-bs-target="#markLostModal">
-      Mark Lost
-    </button>
+    <%# Mark Won / Mark Lost live in the dedicated outcome action row below
+        the (future) Pipeline Stage Tracker — see _outcome_actions.html.erb
+        and SPEC-09 v1.2.1 §8.1. %>
     <%# Pause only makes sense while a campaign is actively running. A
         campaign that stopped itself when the customer replied isn't
         finished — "customer waiting" is a hand-off, not an ending — so it
@@ -61,6 +56,8 @@
 </div>
 
 <% attachments = @job_proposal.attachments.select { |a| a.file.attached? } %>
+
+<%= render "outcome_actions" %>
 
 <div class="card shadow-sm mb-4">
   <div class="card-header">

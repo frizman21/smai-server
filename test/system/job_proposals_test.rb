@@ -46,4 +46,47 @@ class JobProposalsTest < ApplicationSystemTestCase
     assert_current_path job_proposal_path(@proposal)
     assert_equal "won", @proposal.reload.pipeline_stage
   end
+
+  # --- Outcome action row (SPEC-09 v1.2.1 §8.1) ----------------------------
+
+  test "outcome action row renders both buttons for an in-campaign job" do
+    visit job_proposal_path(@proposal)
+
+    assert_selector "button.btn-outline-secondary[data-bs-target='#markWonModal']", text: "Mark Won"
+    assert_selector "button.btn-outline-secondary[data-bs-target='#markLostModal']", text: "Mark Lost"
+  end
+
+  test "Mark Lost in the outcome row has no red fill on its default state" do
+    visit job_proposal_path(@proposal)
+
+    assert_no_selector "button.btn-outline-danger", text: "Mark Lost"
+    assert_no_selector "button.btn-danger[data-bs-target='#markLostModal']"
+  end
+
+  test "outcome action row is hidden for a won job" do
+    @proposal.update!(pipeline_stage: :won)
+    visit job_proposal_path(@proposal)
+
+    assert_no_selector "button[data-bs-target='#markWonModal']"
+    assert_no_selector "button[data-bs-target='#markLostModal']"
+  end
+
+  test "outcome action row is hidden for a lost job" do
+    @proposal.update!(
+      pipeline_stage: :lost,
+      loss_reason: loss_reasons(:price_too_high),
+      loss_notes: "Customer chose a cheaper bid."
+    )
+    visit job_proposal_path(@proposal)
+
+    assert_no_selector "button[data-bs-target='#markWonModal']"
+    assert_no_selector "button[data-bs-target='#markLostModal']"
+  end
+
+  test "header no longer renders the old Mark Won / Mark Lost buttons" do
+    visit job_proposal_path(@proposal)
+
+    assert_no_selector "button.btn-outline-success.btn-sm", text: "Mark Won"
+    assert_no_selector "button.btn-outline-danger.btn-sm", text: "Mark Lost"
+  end
 end
