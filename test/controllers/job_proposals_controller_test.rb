@@ -393,6 +393,8 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match "1247 Oak Ridge Drive", response.body
     assert_match "Alice", response.body
+    assert_select "a.small.text-muted[href=?]", job_proposals_path, text: /Back to Jobs/
+    assert_select "a[href=?] ~ div.d-flex h1", job_proposals_path
   end
 
   test "show offers a Resume campaign button when the campaign stopped on a customer reply" do
@@ -422,6 +424,7 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     assert_match "This job couldn't be found.", response.body
     assert_select "a[href=?]", job_proposals_path, text: /Back to Jobs/
+    assert_select "a[href=?] ~ p", job_proposals_path, text: /This job couldn't be found\./
   end
 
   test "show renders the customer's email in the Customer section as a mailto link" do
