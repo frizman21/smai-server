@@ -33,7 +33,7 @@ Feature: Campaign maintenance
   Scenario: §4e Marking a job as won
     Given a job proposal at my location in a campaign
     When I open the proposal's page
-    And I click "Mark Won"
+    And I mark the job won
     Then the job is marked won
 
   Scenario: §4e Marking a job as lost

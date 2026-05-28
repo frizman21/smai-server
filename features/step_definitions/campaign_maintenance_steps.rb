@@ -98,6 +98,12 @@ Given("a job proposal at my location in a campaign") do
   @proposal = build_proposal(owner: originator_user, status: :approved, pipeline_stage: :in_campaign)
 end
 
+When("I mark the job won") do
+  within("#markWonModal") do
+    click_on "Mark Won"
+  end
+end
+
 Then("the job is marked won") do
   expect(@proposal.reload.pipeline_stage).to eq("won")
 end
