@@ -20,10 +20,10 @@
           form: { class: "d-inline" },
           title: "Undo an accidental Mark Won / Mark Lost." %>
   <% else %>
-    <%= button_to "Mark Won", mark_won_job_proposal_path(@job_proposal),
-          method: :patch,
-          class: "btn btn-outline-success btn-sm",
-          form: { class: "d-inline" } %>
+    <button type="button" class="btn btn-outline-success btn-sm"
+            data-bs-toggle="modal" data-bs-target="#markWonModal">
+      Mark Won
+    </button>
     <button type="button" class="btn btn-outline-danger btn-sm"
             data-bs-toggle="modal" data-bs-target="#markLostModal">
       Mark Lost
@@ -470,6 +470,28 @@
 </div>
 
 <% unless %w[won lost].include?(@job_proposal.pipeline_stage) %>
+  <div class="modal fade" id="markWonModal" tabindex="-1" aria-labelledby="markWonModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <%= form_with url: mark_won_job_proposal_path(@job_proposal), method: :patch, local: true do |f| %>
+          <div class="modal-header">
+            <h5 class="modal-title" id="markWonModalLabel">Mark this job as won</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">
+              This job will be marked as won. All automated follow-ups will stop and the job will be removed from active campaigns.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <%= f.submit "Mark Won", class: "btn btn-success" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="markLostModal" tabindex="-1" aria-labelledby="markLostModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">

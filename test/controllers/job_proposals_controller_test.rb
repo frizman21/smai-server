@@ -1265,15 +1265,16 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     assert_nil jp.reload.pipeline_stage
   end
 
-  test "show page renders Mark Won button and a Mark Lost trigger when pipeline_stage is not won/lost" do
+  test "show page renders Mark Won and Mark Lost triggers when pipeline_stage is not won/lost" do
     sign_in @user
     jp = job_proposals(:in_users_org)
     jp.update!(pipeline_stage: nil)
     get job_proposal_url(jp)
     assert_response :success
-    assert_select "form[action=?] button", mark_won_job_proposal_path(jp), text: /Mark Won/
-    # Mark Lost is now a modal trigger button (not a form), and the modal
-    # contains the form posting to mark_lost.
+    # Both Mark Won and Mark Lost are modal triggers; each modal contains
+    # the form that posts the actual transition.
+    assert_select "button[data-bs-target='#markWonModal']", text: /Mark Won/
+    assert_select "#markWonModal form[action=?]", mark_won_job_proposal_path(jp)
     assert_select "button[data-bs-target='#markLostModal']", text: /Mark Lost/
     assert_select "#markLostModal form[action=?]", mark_lost_job_proposal_path(jp)
   end
@@ -1284,7 +1285,8 @@ class JobProposalsControllerTest < ActionDispatch::IntegrationTest
     jp.update!(pipeline_stage: "won")
     get job_proposal_url(jp)
     assert_response :success
-    assert_select "form[action=?]", mark_won_job_proposal_path(jp), count: 0
+    assert_select "button[data-bs-target='#markWonModal']", count: 0
+    assert_select "#markWonModal", count: 0
     assert_select "button[data-bs-target='#markLostModal']", count: 0
     assert_select "#markLostModal", count: 0
   end
