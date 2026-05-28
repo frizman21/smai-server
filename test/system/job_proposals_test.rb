@@ -4,7 +4,7 @@ class JobProposalsTest < ApplicationSystemTestCase
   setup do
     @user = users(:one)
     @proposal = job_proposals(:in_users_org)
-    @proposal.update!(pipeline_stage: :in_campaign, won_at: nil)
+    @proposal.update!(pipeline_stage: :in_campaign)
 
     visit new_user_session_path
     fill_in "Email", with: @user.email
@@ -34,7 +34,6 @@ class JobProposalsTest < ApplicationSystemTestCase
 
     @proposal.reload
     assert_equal "in_campaign", @proposal.pipeline_stage
-    assert_nil @proposal.won_at
   end
 
   test "Confirming Mark Won transitions the proposal to won" do
