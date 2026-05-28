@@ -153,6 +153,29 @@ config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "localh
 
 If `APP_HOST` is unset, the app boots with a `localhost` fallback so a deploy isn't blocked, but the resulting mailer links would be broken. The in-app missing-env banner surfaces `APP_HOST` as missing on every admin screen in non-development environments, so a fresh deploy gets flagged loudly before any mail goes out. Set `APP_HOST` to your Heroku domain (or your custom domain from §0.6) — it's already in the §0.4 `heroku config:set` block. Staging and production each carry their own value, no code edits required. Development doesn't need `APP_HOST` at all; the dev mailer host comes from Rails' default URL options, not this var.
 
+## 0.5a (Optional) Twilio text-message notifications
+
+When a customer replies to a campaign email, the proposal owner gets a text message with the customer's name, address, phone, DASH number, and a tap-through link into the Gmail conversation. The send is gated by env vars — if these are unset, the feature is quietly off and nothing else in the app changes.
+
+Set up a Twilio account, pick a from-number, and set:
+
+```bash
+heroku config:set \
+  TWILIO_ACCOUNT_SID=AC… \
+  TWILIO_AUTH_TOKEN=… \
+  TWILIO_FROM_NUMBER=+15555550123 \
+  -a <app-name>
+```
+
+Notes:
+
+- The app uses a provider-agnostic `SmsSender` that picks the first configured provider by env-var presence. Twilio is the only provider today; the abstraction is in place so a swap won't require touching the reply path.
+- `TEST_TO_PHONE` (optional) is the SMS counterpart of `TEST_TO_EMAIL`. When set in any environment, every outbound SMS is redirected to that number instead of the real recipient — use this in staging or for a smoke test before pointing real Twilio sends at teammates' phones.
+- For SMS to reach a given user, that user's profile must have a `phone number` filled in. The job no-ops silently for owners without one.
+- The deep-link to Gmail in the SMS body goes through the app's own short-link redirect (`/r/<code>`), so the message stays well under the 160-character SMS limit.
+
+The Integrations admin page shows a **Text messaging (Twilio)** row with three states: **OK** when all three vars are set; **Warning** when the config is partial; **Missing** when none are set.
+
 ## 0.6 (Optional) Custom domain and SSL
 
 ```bash

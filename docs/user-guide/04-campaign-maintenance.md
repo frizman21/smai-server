@@ -63,6 +63,8 @@ The job's detail page shows a **Customer** card, a **Job** card with status and 
 
 When a customer replies to a campaign email, the system stops sending — no more follow-ups go out on that thread. The job is flagged as **waiting on the customer** so you can spot it on the board.
 
+You'll also get a **text message on your phone**, as long as your tenant has SMS turned on and your profile has a phone number on file. The text identifies the customer (name, address, phone, DASH number) and includes a short link you can tap to open the Gmail conversation directly. If you don't want the texts, clear the phone number on **Profile → Edit**.
+
 What you'll see on the **Jobs** board:
 
 - The card's action button reads **Open in Gmail** — click it to jump straight to the conversation in a new tab and reply from your usual inbox.

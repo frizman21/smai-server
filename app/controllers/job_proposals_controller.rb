@@ -3,7 +3,7 @@ class JobProposalsController < ApplicationController
   ALLOWED_DIRS  = %w[asc desc].freeze
 
   EDITABLE_PARAMS = %i[
-    customer_title customer_first_name customer_last_name customer_email
+    customer_title customer_first_name customer_last_name customer_email customer_phone
     customer_house_number customer_street customer_city customer_state customer_zip
     internal_reference dash_job_number loss_notes loss_reason_id
     owner_id job_type_id scenario_id proposal_value
@@ -480,6 +480,7 @@ class JobProposalsController < ApplicationController
     scope.where(<<~SQL.squish, p: pattern)
       customer_first_name   ILIKE :p OR
       customer_last_name    ILIKE :p OR
+      customer_phone        ILIKE :p OR
       customer_house_number ILIKE :p OR
       customer_street       ILIKE :p OR
       customer_city         ILIKE :p OR

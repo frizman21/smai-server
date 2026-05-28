@@ -17,6 +17,10 @@ Rails.application.routes.draw do
   authenticate :user, ->(u) { u.is_admin } do
     mount Sidekiq::Web => "/sidekiq"
   end
+  # Public short-link redirect. Recipients of outbound SMS land here
+  # before they're signed in, so the action skips Devise auth.
+  get "/r/:id", to: "short_links#show", as: :short_link
+
   resources :invitations, only: [:show, :create, :destroy]
   resources :users, only: [:index, :edit, :update]
   get "profile" => "profiles#show", as: :profile

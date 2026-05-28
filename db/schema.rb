@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_23_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_24_225837) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -232,6 +232,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_180000) do
     t.string "customer_first_name"
     t.string "customer_house_number"
     t.string "customer_last_name"
+    t.string "customer_phone"
     t.string "customer_state"
     t.string "customer_street"
     t.string "customer_title"
@@ -370,6 +371,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_23_180000) do
     t.index ["campaign_id"], name: "index_scenarios_on_campaign_id"
     t.index ["job_type_id", "code"], name: "index_scenarios_on_job_type_id_and_code", unique: true
     t.index ["job_type_id"], name: "index_scenarios_on_job_type_id"
+  end
+
+  create_table "short_links", force: :cascade do |t|
+    t.string "code", null: false
+    t.datetime "created_at", null: false
+    t.text "target_url", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_short_links_on_code", unique: true
   end
 
   create_table "tenant_job_types", force: :cascade do |t|
