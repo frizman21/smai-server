@@ -1,0 +1,14 @@
+services:
+  postgres:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  web:
+    ports: !reset []
+    command: tail -f /dev/null
+    volumes: !override
+      - bundle_cache:/usr/local/bundle
+  sidekiq:
+    command: tail -f /dev/null
+    volumes: !override
+      - bundle_cache:/usr/local/bundle
