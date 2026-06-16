@@ -1,4 +1,19 @@
 class EmailDelegationsController < ApplicationController
+  # Shown when Google connects an account but returns no refresh token. Without
+  # one, GmailSender#refresh_if_needed has nothing to renew with, so the access
+  # token Google just issued dies within the hour and the connection is dead.
+  # This happens on reconnect when Google still remembers a prior grant: it
+  # returns an access token without a refresh token and shows the streamlined
+  # consent screen. The in-app Disconnect only deletes our local row — it does
+  # not revoke the grant at Google — so reconnecting alone never fixes it. The
+  # user must revoke at Google first to force a clean re-consent.
+  REFRESH_TOKEN_REQUIRED_ALERT = <<~MSG.squish.freeze
+    Google connected your account but didn't return a renewal token, so this
+    connection would stop working within an hour. Remove ServiceMark AI at
+    myaccount.google.com/permissions, then click "Setup G Suite" again to
+    reconnect.
+  MSG
+
   def create
     auth = request.env["omniauth.auth"]
     if auth.blank?
@@ -18,6 +33,15 @@ class EmailDelegationsController < ApplicationController
     )
     delegation.access_token = auth.credentials.token
     delegation.refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
+
+    # Don't persist a connection that can't be renewed. A previously-stored
+    # refresh token (kept by the line above when Google returns none on
+    # reconnect) keeps a working delegation alive; only block when there's no
+    # usable refresh token at all.
+    if delegation.refresh_token.blank?
+      redirect_to profile_path, alert: REFRESH_TOKEN_REQUIRED_ALERT and return
+    end
+
     delegation.expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
     delegation.scopes = Array(auth.extra&.dig("raw_info", "scope") || auth.credentials.scope).join(" ")
     delegation.save!
@@ -62,6 +86,13 @@ class EmailDelegationsController < ApplicationController
     mailbox.email = auth.info.email
     mailbox.access_token = auth.credentials.token
     mailbox.refresh_token = auth.credentials.refresh_token if auth.credentials.refresh_token.present?
+
+    # Same renewal requirement as a per-user delegation (see create): an
+    # application mailbox with no refresh token dies within the hour.
+    if mailbox.refresh_token.blank?
+      redirect_to admin_application_mailbox_path, alert: REFRESH_TOKEN_REQUIRED_ALERT and return
+    end
+
     mailbox.expires_at = Time.zone.at(auth.credentials.expires_at) if auth.credentials.expires_at
     mailbox.scopes = Array(auth.extra&.dig("raw_info", "scope") || auth.credentials.scope).join(" ")
     mailbox.save!

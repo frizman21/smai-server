@@ -67,6 +67,45 @@ class EmailDelegationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "refresh-token-xyz", delegation.refresh_token
   end
 
+  # Google omits the refresh token on a reconnect when it still remembers a
+  # prior grant. A delegation saved without one can't be renewed and dies at
+  # access-token expiry, so the callback must refuse to persist it rather than
+  # create a connection that silently breaks within the hour.
+  test "callback refuses to save a new delegation when Google returns no refresh token" do
+    sign_in @user
+    Rails.application.env_config["omniauth.auth"] = auth_without_refresh_token
+
+    assert_no_difference -> { @user.email_delegations.count } do
+      get "/auth/google_oauth2/callback"
+    end
+    assert_redirected_to profile_path
+    follow_redirect!
+    assert_match(/didn't return a renewal token/i, response.body)
+    assert_match %r{myaccount\.google\.com/permissions}, response.body
+  end
+
+  # The legitimate reconnect case: a delegation already has a stored refresh
+  # token and Google returns none. The stored token is preserved and the
+  # connection keeps working — the guard must not block this.
+  test "callback keeps an existing delegation working when reconnect returns no refresh token" do
+    sign_in @user
+    @user.email_delegations.create!(
+      provider: "google_oauth2",
+      email: "owner@example.com",
+      access_token: "old-token",
+      refresh_token: "kept-refresh"
+    )
+    Rails.application.env_config["omniauth.auth"] = auth_without_refresh_token
+
+    assert_no_difference -> { @user.email_delegations.count } do
+      get "/auth/google_oauth2/callback"
+    end
+    assert_redirected_to profile_path
+    delegation = @user.email_delegations.first
+    assert_equal "access-token-abc", delegation.access_token, "access token should refresh"
+    assert_equal "kept-refresh", delegation.refresh_token, "stored refresh token should be preserved"
+  end
+
   test "failure path shows an alert" do
     sign_in @user
     get "/auth/failure", params: { message: "invalid_credentials" }
@@ -114,6 +153,23 @@ class EmailDelegationsControllerTest < ActionDispatch::IntegrationTest
   # trip in tests we drive the request phase first (allowing GET so we
   # bypass omniauth-rails_csrf_protection) and follow the mock redirect to
   # the callback path.
+
+  # A google_oauth2 auth hash with no refresh token, mirroring what Google
+  # returns on a reconnect when it still holds a prior grant.
+  def auth_without_refresh_token
+    OmniAuth::AuthHash.new(
+      provider: "google_oauth2",
+      uid: "1234567890",
+      info: { email: "owner@example.com", name: "Owner" },
+      credentials: {
+        token: "access-token-abc",
+        refresh_token: nil,
+        expires_at: 1.hour.from_now.to_i,
+        scope: "email profile https://www.googleapis.com/auth/gmail.send"
+      },
+      extra: { raw_info: { scope: "email profile https://www.googleapis.com/auth/gmail.send" } }
+    )
+  end
 
   def with_omniauth_get_allowed
     prior = OmniAuth.config.allowed_request_methods.dup
