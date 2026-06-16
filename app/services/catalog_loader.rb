@@ -1,9 +1,10 @@
 # Loads the production-safe catalog data: restoration job types, the
-# scenarios authored under docs/campaigns/v1-output/, and a default
-# Campaign per scenario with steps populated from the same source
-# markdown. Idempotent — safe to run any number of times against an
-# existing database. No tenants, users, or demo proposals are touched
-# here; that lives in db/seeds.rb for dev.
+# scenarios authored under the smai-specs submodule
+# (docs/specs-repo/specs/templates/v1-output/), and a default Campaign
+# per scenario with steps populated from the same source markdown.
+# Idempotent — safe to run any number of times against an existing
+# database. No tenants, users, or demo proposals are touched here; that
+# lives in db/seeds.rb for dev.
 #
 # Used by:
 #   - rake task `catalog:load` (production setup, see docs/user-guide/00-production-setup.md)
@@ -44,7 +45,10 @@ class CatalogLoader
     }
   ].freeze
 
-  CAMPAIGNS_ROOT = Rails.root.join("docs", "campaigns", "v1-output")
+  # Campaign template markdown lives in the smai-specs submodule, mounted
+  # at docs/specs-repo. A fresh checkout must init submodules
+  # (`git submodule update --init`) for this path to be populated.
+  CAMPAIGNS_ROOT = Rails.root.join("docs", "specs-repo", "specs", "templates", "v1-output")
 
   # The Gemini model + extraction prompt JobProposalProcessor reads at
   # upload time. PdfProcessingRevision rows are versioned by content —

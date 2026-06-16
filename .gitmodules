@@ -1,0 +1,3 @@
+[submodule "docs/specs-repo"]
+	path = docs/specs-repo
+	url = https://github.com/ServiceMark-AI/smai-specs

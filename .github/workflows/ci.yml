@@ -31,6 +31,12 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # The smai-specs submodule at docs/specs-repo holds the campaign
+          # template markdown CatalogLoader reads. If smai-specs is private
+          # and in a different org, the default GITHUB_TOKEN can't read it —
+          # supply a PAT with read access via a `token:` input here.
+          submodules: recursive
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -70,6 +76,12 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # The smai-specs submodule at docs/specs-repo holds the campaign
+          # template markdown CatalogLoader reads. If smai-specs is private
+          # and in a different org, the default GITHUB_TOKEN can't read it —
+          # supply a PAT with read access via a `token:` input here.
+          submodules: recursive
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -111,6 +123,12 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # The smai-specs submodule at docs/specs-repo holds the campaign
+          # template markdown CatalogLoader reads. If smai-specs is private
+          # and in a different org, the default GITHUB_TOKEN can't read it —
+          # supply a PAT with read access via a `token:` input here.
+          submodules: recursive
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
