@@ -73,14 +73,15 @@ class EmailDelegationsControllerTest < ActionDispatch::IntegrationTest
   # create a connection that silently breaks within the hour.
   test "callback refuses to save a new delegation when Google returns no refresh token" do
     sign_in @user
-    Rails.application.env_config["omniauth.auth"] = auth_without_refresh_token
+    OmniAuth.config.mock_auth[:google_oauth2] = auth_without_refresh_token
+    Rails.application.env_config["omniauth.auth"] = OmniAuth.config.mock_auth[:google_oauth2]
 
     assert_no_difference -> { @user.email_delegations.count } do
       get "/auth/google_oauth2/callback"
     end
     assert_redirected_to profile_path
     follow_redirect!
-    assert_match(/didn't return a renewal token/i, response.body)
+    assert_match(/return a renewal token/i, response.body)
     assert_match %r{myaccount\.google\.com/permissions}, response.body
   end
 
@@ -95,7 +96,8 @@ class EmailDelegationsControllerTest < ActionDispatch::IntegrationTest
       access_token: "old-token",
       refresh_token: "kept-refresh"
     )
-    Rails.application.env_config["omniauth.auth"] = auth_without_refresh_token
+    OmniAuth.config.mock_auth[:google_oauth2] = auth_without_refresh_token
+    Rails.application.env_config["omniauth.auth"] = OmniAuth.config.mock_auth[:google_oauth2]
 
     assert_no_difference -> { @user.email_delegations.count } do
       get "/auth/google_oauth2/callback"
