@@ -357,6 +357,21 @@ class GmailReplyPollJobTest < ActiveSupport::TestCase
     assert_equal reply_on_earlier, earlier_step.gmail_reply_payload
   end
 
+  test "internal_reply? rejects malformed sender emails" do
+    bad = {
+      "payload" => { "headers" => [{ "name" => "From", "value" => "Malformed <user@." }] }
+    }
+    tenant = @proposal.tenant
+    assert_not GmailReplyPollJob.new.send(:internal_reply?, bad, tenant)
+  end
+
+  test "internal_reply? returns false when tenant is nil" do
+    msg = {
+      "payload" => { "headers" => [{ "name" => "From", "value" => "x@example.com" }] }
+    }
+    assert_not GmailReplyPollJob.new.send(:internal_reply?, msg, nil)
+  end
+
   private
 
   def build_sent_step(thread_id:, snapshot_messages:)
